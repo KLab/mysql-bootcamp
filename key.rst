@@ -1,6 +1,56 @@
 Index (key)
 ============
 
+What's Index
+-------------
+
+Index and Key have same meaning.
+Index is general word but Key is Database specific word.
+
+Index is for searching record effectively.
+
+.. code:: bash
+
+    $ sudo apt-get install ipython python-mysql
+    $ ipython
+
+    In [1]: import MySQLdb
+    In [2]: con = MySQLdb.connect(user='testuser', passwd='password', db='testdb')
+    In [3]: cur = con.cursor()
+    In [4]: cur.execute("CREATE table test1 (id INTEGER PRIMARY KEY AUTO_INCREMENT, val INTEGER)")
+    Out[4]: 0L
+    In [5]: values = [(i, i*2) for i in range(1, 100000)]
+    In [6]: cur.executemany("INSERT INTO test1 VALUES (%s, %s)", values)
+    Out[6]: 99999L
+    In [7]: con.commit()
+
+    $ mysql -u testuser -ppassword testdb
+
+    mysql> select * from test1 where id=100;
+    +-----+------+
+    | id  | val  |
+    +-----+------+
+    | 100 |  200 |
+    +-----+------+
+    1 row in set (0.00 sec)
+
+    mysql> select * from test1 where val=200;
+    +-----+------+
+    | id  | val  |
+    +-----+------+
+    | 100 |  200 |
+    +-----+------+
+    1 row in set (0.02 sec)
+
+As you can see, select by PK consumes 0.00 sec and select by where consumes
+0.02 sec on table having 100000 records.
+
+If 1M records in Table, selecting without Index may consume 0.2sec. This means
+only 5 (* CPU cores) querys can be executed in one second.
+
+We need to execute thoughounds of queries in one second.
+
+
 Data Structure
 ---------------
 
@@ -234,9 +284,6 @@ index on (a, b)::
     | 60  | 66  | 6   |
     +-----+-----+-----+
 
-note
-~~~~~~
-
 1. Index may be bigger than you think. consumes significant space like table. 
 
 2. All indicies has PK implicitly.
@@ -287,5 +334,37 @@ MySQL 5.5 can show how ``SELECT`` query executed by ``EXPLAIN SELECT...`` query.
     MySQL 5.6 supports EXPLAINing INSERT, UPDATE, DELETE, ... queries too.
     On MySQL 5.5, you can explain UPDATE and DELETE by replace it to SELECT.
 
+example::
 
-TODO
+    mysql> explain select * from test1 where val=200;
+    +----+-------------+-------+------+---------------+------+---------+------+--------+-------------+
+    | id | select_type | table | type | possible_keys | key  | key_len | ref  | rows   | Extra       |
+    +----+-------------+-------+------+---------------+------+---------+------+--------+-------------+
+    |  1 | SIMPLE      | test1 | ALL  | NULL          | NULL | NULL    | NULL | 100808 | Using where |
+    +----+-------------+-------+------+---------------+------+---------+------+--------+-------------+
+    1 row in set (0.00 sec)
+
+    mysql> explain select * from test1 where id=100;
+    +----+-------------+-------+-------+---------------+---------+---------+-------+------+-------+
+    | id | select_type | table | type  | possible_keys | key     | key_len | ref   | rows | Extra |
+    +----+-------------+-------+-------+---------------+---------+---------+-------+------+-------+
+    |  1 | SIMPLE      | test1 | const | PRIMARY       | PRIMARY | 4       | const |    1 |       |
+    +----+-------------+-------+-------+---------------+---------+---------+-------+------+-------+
+    1 row in set (0.00 sec)
+
+
+How to make an effective indicies
+------------------------------------
+
+Index has significant cost. So you should not create index everywhere.
+
+Since finding slow query is easier than finding unnecessary index,
+I recommend start with minimum, obviously required indicies.
+
+Slow query log is useful feature to find slow query.
+It logs queries consumes specified execution time.
+
+You can insert many dummy data to development environment.
+Before releasing, check slowlog, find slow queries and consider how to solve.
+(Sometimes there is better way than creating index.)
+
