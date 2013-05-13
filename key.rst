@@ -352,6 +352,31 @@ example::
     +----+-------------+-------+-------+---------------+---------+---------+-------+------+-------+
     1 row in set (0.00 sec)
 
+Important columns:
+
+type
+~~~~~
+
+If type is `ALL`, MySQL scan whole table. If type is `index`, MySQL scan whole `index`.
+Otherwise, MySQL uses index efficiently.
+
+key
+~~~~
+key means what key(index) is used.
+
+rows
+~~~~~
+rows means estimated rows to test.
+If this value is large (>1000), it's problem.
+
+Extra
+~~~~~~
+
+* Using index - need only index.
+* Using where - test each record.
+* Using temporary - needs temporary temble
+* Using filesort - sort by temporary table
+
 
 How to make an effective indicies
 ------------------------------------
@@ -368,3 +393,16 @@ You can insert many dummy data to development environment.
 Before releasing, check slowlog, find slow queries and consider how to solve.
 (Sometimes there is better way than creating index.)
 
+To use slow query log:
+
+* slow_query_log - `on` to enable slow query log.
+* log_output - where sloq query log saved.
+
+    * `TABLE` - log saved to `mysql.slow_log` table.
+    * `FILE` - log saved to file specifed by `slow_query_log_file`.
+
+* long_query_time - queries takes longer this value are logged. (0.01~0.1)
+* log_queries_not_using_indexes - `on` to log queries doesn't using indexes.
+* min_examined_row_limit - Suppress slow query log when examined rows below this value.
+
+See also: http://dev.mysql.com/doc/refman/5.5/en/slow-query-log.html
