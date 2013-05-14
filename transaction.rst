@@ -23,7 +23,7 @@ The schema:
 
     create table account (
         id INTEGER PRIMARY KEY AUTO_INCREMENT,
-        money INTEGER NOT NULL DEFAULT 0
+        amount INTEGER NOT NULL DEFAULT 0
     )
 
 php with Propel:
@@ -33,27 +33,31 @@ php with Propel:
 
     <?php
     class AccountService {
-    // ...
-    static function transfer(int $from_id, int $to_id, int $amount) {
-        $con = PropelPDO::getConnection('master');
-        $con->begin();
-        try {
-            $from_account = AccountPeer::retrieveByPK($from_id);
-            if ($from_account === null) {
-                throw new Exception("Invalid account $from_id");
+        static function transfer(int $from_id, int $to_id, int $amount) {
+            $con = PropelPDO::getConnection('master');
+            $con->beginTransaction();
+            try {
+                $from_account = AccountPeer::retrieveByPK($from_id);
+                if ($from_account === null) {
+                    throw new Exception("Invalid account $from_id");
+                }
+                $to_account = AccountPeer::retrieveByPK($to_id);
+                if ($to_account === null) {
+                    throw new Exception("Invalid account $to_id");
+                }
+                if ($from_account->getAmount() < $amount) {
+                    throw new Exception("account $from_id doesn't have enough money. (" .
+                                        $from_account->getAmount() . " < $amount)");
+                }
+                $from_account->setAmount($from_account->getAmount() - $amount);
+                $from_account->save($con);
+                $to_account->setAmount($to_account->getAmount() + $amount);
+                $to_account->save($con);
+                $con->commit();
+            } catch (Exception $e) {
+                $con->rollback();
+                throw $e;
             }
-            if ($from_account.getAmount() < $amount) {
-                throw new Exception("account $from_id doesn't have enough money. (" .
-                                    $from_account->getAmount() . " < $amount)");
-            }
-            $to_account = AccountPeer::retrieveByPK($to_id);
-            if ($from_account === null) {
-                throw new Exception("Invalid account $to_id");
-            }
-            $con->commit();
-        } catch (Exception $e) {
-            $con->rollback();
-            throw $e;
         }
     }
 
@@ -63,7 +67,6 @@ Python with SQLAlchemy:
     :linenos:
 
     # accountservice.py
-    # ...
     def transfer(from_id, to_id, amount):
         with Session.begin():  # get connection and begin transaction
             # commit on exit without exception.
@@ -82,6 +85,10 @@ Python with SQLAlchemy:
 
             from_account.amount -= amount
             to_account.amount += amount
+
+.. note::
+
+    This example has a problem. We discusse it later.
 
 After transaction, money is completly transferred or not transferred.
 Total amount should not be changed. This is atomicity.
@@ -308,12 +315,12 @@ In php + Propel:
 
     <?php
     class QuestService {
-        static function doQuest($player, $quest_id) {
+        static function doQuest(Player $player, int $quest_id) {
             $con = Propel::getConnection('master');
             $con->beginTransaction();
             try {
                 // ...
-                $team = TeamPeer::retrieveByPK($player->$team_id, $con);
+                $team = TeamPeer::retrieveByPK($player->getTeamId(), $con);
                 $team->setPoint($team->getPoint() + $got_point);
                 $team->save($con);
                 // ...
@@ -343,7 +350,6 @@ lock example
 ~~~~~~~~~~~~~~
 
 Update query automatically acquires lock. ``SELECT ... FOR UPDATE`` also acquire lock.
-And ``SELECT ... FOR UPDATE`` also ignore MVCC and read newest state.
 
 .. code:: sql
 
@@ -364,18 +370,29 @@ And ``SELECT ... FOR UPDATE`` also ignore MVCC and read newest state.
                                                     > UPDATE team SET point=13 WHERE team_id=3;
                                                     > COMMIT
 
+Better example:
+
+.. code:: sql
+
+    # A player adds 3 points to team.
+    # This locks only while single query (autocommit)
+    > UPDATE team SET point=point+3 WHERE team_id=3;
+
+                                                    # Another player in same team adds 5 points.
+                                                    # This also waits until left query is committed.
+                                                    # But lock time is shoter.
+                                                    > UPDATE team SET point=point+5 WHERE team_id=3;
+
 Propel doesn't support `FOR UPDATE`.
 So we customize code generator to make ``retrieveByPk4Update()`` automatically.
 Here is php + Propel example:
 
 .. code-block:: php
-    :linenos:
+   :linenos:
 
     <?php
-
-    // ...
     class QuestService {
-        static function doQuest($quest_id, $player) {
+        static function doQuest(Player $player, int $quest_id) {
             $con = Propel::getConnection('master');
             $con->beginTransaction();
             try {
@@ -396,14 +413,422 @@ SQLAlchemy supports ``FOR UPDATE`` as ``query.with_lockmode('update')``.
 You can use this not only for selecting by PK.
 
 .. code-block:: python
-    :linenos:
+   :linenos:
 
     # quest_service.py
-    def do_quest(quest_id, player):
+    def do_quest(player, quest_id):
         with Session.begin():
             #...
             team = Session.query(Team).with_lockmode('update').get(player.team_id)
             team.point += got_point
             #...
 
+You can use ``point=point+n`` too, but it's trickey a bit.
+
+.. code-block:: python
+   :linenos:
+
+    # quest_service.py
+    def do_quest(player, quest_id):
+        with Session.begin():
+            #...
+            team = Session.query(Team).get(player.team_id)
+            # `Team.point + got_point` is query expression.
+            # This query is executed on saving changes.
+            # Result value will be fetched after save.
+            team.point = Team.point + got_point
+            #...
+
+row lock and table lock
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+One very important thing about lock is granularity.
+If one lock blocks all other sessions, it's called "global lock".
+
+In MySQL, global lock is rare. But sometimes table lock happens.
+For example, ``ALTER TABLE`` requires table lock.
+``CREATE INDEX`` also acquires table lock in MySQL 5.5.
+(MySQL 5.6 supports online create index).
+
+Normal query may acquires talbe lock too.
+Please consider following case::
+
+    > BEGIN;
+    > SELECT SUM(point) FROM player WHERE team_id=1234 FOR UPDATE;  -- (1)
+    42
+    > UPDATE team SET total_point=42 WHERE team_id=1234;
+    > COMMIT
+
+After (1) query, other session can't ``INSERT INTO player (..., team_id) VALUES (..., 1234)``,
+``UPDATE player SET point=point+5 WHERE id=7`` (player id 7 belongs to team 1234), and
+``UPDATE player SET team_id=7743 WHERE id=7``.
+
+But... how can MySQL distinguish queries to blocked?
+
+The first answer is table lock. MySQL can block all queries updating `player` table.
+This is big problem. (Q: Can you why this is a big problem?)
+
+So, next answer is key. If you create index to ``player.team_id`` column,
+queries like ``SELECT ... WHERE team_id=1234 FOR UPDATE`` locks ``team_id=1234`` index record
+and all affected PK record.
+
+Inserting new player having ``team_id=1234`` should update index on ``team_id`` but it's locked.
+Updating player having ``id=7`` should lock PK but it's locked if the player's team_id is 1234.
+Such queries are blocked until transaction acquiring the lock is committed.
+
+All other queries modifing ``player`` table can be executed withotu block safely.
+
+example: table lock
+~~~~~~~~~~~~~~~~~~~~
+
+.. code::
+
+    mysql> begin;
+    Query OK, 0 rows affected (0.00 sec)
+
+    # "data" column doesn't have index. So this is table lock.
+    mysql> select * from test1 where data=100 for update;
+    +----+----------+------+
+    | id | other_id | data |
+    +----+----------+------+
+    |  2 |       70 |  100 |
+    +----+----------+------+
+    1 row in set (0.00 sec)
+
+                                    mysql> select * from test1 where id=1 for update;
+                                    # blocked...
+
+    mysql> rollback;
+    Query OK, 0 rows affected (0.00 sec)
+
+                                    +----+----------+------+
+                                    | id | other_id | data |
+                                    +----+----------+------+
+                                    |  1 |      100 |  123 |
+                                    +----+----------+------+
+                                    1 row in set (12.13 sec)
+
+
+
+example: row lock
+~~~~~~~~~~~~~~~~~~
+
+.. code::
+
+    mysql> begin;
+    Query OK, 0 rows affected (0.00 sec)
+
+    mysql> select * from test1 where id=2 for update;
+    +----+----------+------+
+    | id | other_id | data |
+    +----+----------+------+
+    |  2 |       70 |  100 |
+    +----+----------+------+
+    1 row in set (0.00 sec)
+
+                                    # locking id=2 doesn't blocks id=1.
+                                    mysql> select * from test1 where id=1 for update;
+                                    +----+----------+------+
+                                    | id | other_id | data |
+                                    +----+----------+------+
+                                    |  1 |      100 |  123 |
+                                    +----+----------+------+
+                                    1 row in set (0.00 sec)
+
+                                    mysql> select * from test1 where id=2 for update;
+                                    # blocked...
+
+    mysql> rollback;
+    Query OK, 0 rows affected (0.00 sec)
+
+                                    +----+----------+------+
+                                    | id | other_id | data |
+                                    +----+----------+------+
+                                    |  2 |       70 |  100 |
+                                    +----+----------+------+
+                                    1 row in set (2.86 sec)
+
+More about locks
+==================
+
+MVCC and Updating
+~~~~~~~~~~~~~~~~~~
+
+As I said before, ``SELECT`` returns may be old version.
+This also cause lost update.
+So ``SELECT ... FOR UPDATE`` ignores MVCC and returns newest value.
+
+And after updating record, ``SELECT`` returns updated version instead of
+transaction beginning version.
+
+example
+~~~~~~~~
+
+.. code::
+
+    mysql> begin;
+    Query OK, 0 rows affected (0.00 sec)
+    mysql> select * from test1;
+    +----+----------+------+
+    | id | other_id | data |
+    +----+----------+------+
+    |  1 |      100 |  123 |
+    |  2 |       70 |  100 |
+    |  3 |       89 |   99 |
+    |  4 |       60 |   10 |
+    +----+----------+------+
+    4 rows in set (0.00 sec)
+
+                                    mysql> update test1 set other_id=0 where id in (2,3);
+                                    Query OK, 2 rows affected (0.01 sec)
+                                    Rows matched: 2  Changed: 2  Warnings: 0
+
+    # normal select returns old version because of MVCC.
+    mysql> select * from test1;
+    +----+----------+------+
+    | id | other_id | data |
+    +----+----------+------+
+    |  1 |      100 |  123 |
+    |  2 |       70 |  100 |
+    |  3 |       89 |   99 |
+    |  4 |       60 |   10 |
+    +----+----------+------+
+    4 rows in set (0.00 sec)
+
+    # But SELECT...FOR UPDATE returns newest value.
+    mysql> select * from test1 where id=2 for update;
+    +----+----------+------+
+    | id | other_id | data |
+    +----+----------+------+
+    |  2 |        0 |  100 |
+    +----+----------+------+
+    1 row in set (0.01 sec)
+
+    # Again, normal select returns old version because of MVCC.
+    mysql> select * from test1;
+    +----+----------+------+
+    | id | other_id | data |
+    +----+----------+------+
+    |  1 |      100 |  123 |
+    |  2 |       70 |  100 |
+    |  3 |       89 |   99 |
+    |  4 |       60 |   10 |
+    +----+----------+------+
+    4 rows in set (0.00 sec)
+
+    mysql> update test1 set other_id=1000 where id=2;
+    Query OK, 1 row affected (0.00 sec)
+    Rows matched: 1  Changed: 1  Warnings: 0
+
+    # after updating, values of id=2 row are updated version.
+    mysql> select * from test1;
+    +----+----------+------+
+    | id | other_id | data |
+    +----+----------+------+
+    |  1 |      100 |  123 |
+    |  2 |     1000 |  100 |
+    |  3 |       89 |   99 |
+    |  4 |       60 |   10 |
+    +----+----------+------+
+    4 rows in set (0.00 sec)
+
+
+Gap lock and Next key lock
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When locking query doesn't maches to records, the query locks between rows to
+block other transaction inserts records matched. This is called Gap lock.
+
+.. image:: gap_lock.png
+   :height: 400px
+
+When a query locks non-unique key, it also locks gap before and after the records
+to block other transactions inserts records there. This is called next key lock.
+
+.. image:: next_key_lock.png
+   :height: 400px
+
+
+example: gap lock
+~~~~~~~~~~~~~~~~~~~
+
+::
+
+    mysql> show create table test1\G
+    *************************** 1. row ***************************
+            Table: test1
+    Create Table: CREATE TABLE `test1` (
+      `id` int(11) NOT NULL,
+      `other_id` int(11) DEFAULT NULL,
+      `data` int(11) DEFAULT NULL,
+      PRIMARY KEY (`id`),
+      KEY `idx_1` (`other_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    1 row in set (0.00 sec)
+
+    mysql> select * from test1;
+    +----+----------+------+
+    | id | other_id | data |
+    +----+----------+------+
+    |  1 |      100 |  123 |
+    |  2 |       70 |  100 |
+    |  3 |       80 |   99 |
+    +----+----------+------+
+    3 rows in set (0.00 sec)
+
+    mysql> begin;
+    Query OK, 0 rows affected (0.00 sec)
+
+    mysql> select * from test1 where id=100 for update; # id > 3 の gap が全部ロックされる
+    Empty set (0.00 sec)
+
+                                    mysql> insert into test1 (id, other_id, data) values (4, 60, 10);
+
+    mysql> rollback;
+    Query OK, 0 rows affected (0.00 sec)
+
+                                    Query OK, 1 row affected (5.83 sec)
+
+
+example: next key lock
+~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+    mysql> select * from test1;
+    +----+----------+------+
+    | id | other_id | data |
+    +----+----------+------+
+    |  1 |      100 |  123 |
+    |  2 |       70 |  100 |
+    |  3 |       80 |   99 |
+    |  4 |       60 |   10 |
+    +----+----------+------+
+    4 rows in set (0.00 sec)
+
+    mysql> begin;
+    Query OK, 0 rows affected (0.00 sec)
+
+    mysql> select * from test1 where other_id=70 for update;;
+    +----+----------+------+
+    | id | other_id | data |
+    +----+----------+------+
+    |  2 |       70 |  100 |
+    +----+----------+------+
+    1 row in set (0.00 sec)
+
+                                    mysql> insert into test1 (id, other_id, data) values (5, 65, 0);
+
+    mysql> rollback;
+    Query OK, 0 rows affected (0.00 sec)
+
+                                    Query OK, 1 row affected (6.20 sec)
+
+Realistic problem examples
+===========================
+
+Too long lock
+~~~~~~~~~~~~~~~~~
+
+::
+
+    > BEGIN;
+    > UPDATE guild_point SET point=point+5 where guild_id=9;
+    (Calling external HTTP API here ...)
+    > COMMIT
+
+dead lock
+~~~~~~~~~~~~~
+
+One of famous problem about lock.
+
+One session has lock A and trying to get lock B.
+Another session has lock B and trying to get lock A.
+Both session can't lock.
+
+To avoid deadlock, decide ordering to lock.
+For example, "lock player before team" or "lock row with smaller id first".
+
+.. code-block:: php
+    :linenos:
+
+    <?php
+    class AccountService {
+        static function transfer(int $from_id, int $to_id, int $amount) {
+            $con = PropelPDO::getConnection('master');
+            $con->begin();
+            try {
+                // lock lower id first
+                if ($from_id < $to_id) {
+                    $from_account = AccountPeer::retrieveByPk4Update($from_id);
+                    $to_account = AccountPeer::retrieveByPk4Update($to_id);
+                } else {
+                    $to_account = AccountPeer::retrieveByPk4Update($to_id);
+                    $from_account = AccountPeer::retrieveByPk4Update($from_id);
+                }
+                if ($from_account === null) {
+                    throw new Exception("Invalid account $from_id");
+                }
+                if ($to_account === null) {
+                    throw new Exception("Invalid account $to_id");
+                }
+                if ($from_account.getAmount() < $amount) {
+                    throw new Exception("account $from_id doesn't have enough money. (" .
+                                        $from_account->getAmount() . " < $amount)");
+                }
+                $from_account->setAmount($from_account->getAmount() - $amount);
+                $from_account->save($con);
+                $to_account->setAmount($to_account->getAmount() + $amount);
+                $to_account->save($con);
+                $con->commit();
+            } catch (Exception $e) {
+                $con->rollback();
+                throw $e;
+            }
+        }
+    }
+
+.. code-block:: python
+    :linenos:
+
+    # accountservice.py
+    # ...
+    def transfer(from_id, to_id, amount):
+        with Session.begin():
+            # lock lower id first.
+            if from_id < to_id:
+                from_account = Session.query(Account).with_lockmode('update').get(from_id)
+                to_account = Session.query(Account).with_lockmode('update').get(to_id)
+            else:
+                to_account = Session.query(Account).with_lockmode('update').get(to_id)
+                from_account = Session.query(Account).with_lockmode('update').get(from_id)
+
+            if not from_account:
+                raise Exception("Bad account id: %r" % (from_id,))
+            if not to_account:
+                raise Exception("Bad account id: %r" % (to_id,))
+            if from_account.amount < amount:
+                raise Exception("account %d doesn't have enough money. (%d < %d)" %
+                                (from_id, from_account.amount, amount))
+
+            from_account.amount -= amount
+            to_account.amount += amount
+
+Gap lock herd
+~~~~~~~~~~~~~~
+
+.. code:: php
+
+    <?php
+
+    // person is created before.
+
+    $person_status = PersonStatusPeer::retrieveByPk4Update($person_id);
+    if ($person_status === null) {
+        $person_status = new PersonStatus();
+        $person_status->setPersonId($person_id);
+    }
+    // initialize...
+    $person_status->save($con);
+    $con->commit();
 
