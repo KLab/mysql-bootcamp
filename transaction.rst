@@ -102,6 +102,12 @@ after transaction but not intermediate state.
     MySQL can select transaction isolation level. It's default is "repeatable read".
     This chapter suppose this transaction isolation level.
 
+    Other isolation levels are:
+
+        - read uncommitted
+        - read committed
+        - serialized
+
 autocommit
 ===========
 MySQL has **autocommit** mode that is default on.
@@ -832,3 +838,11 @@ Gap lock herd
     $person_status->save($con);
     $con->commit();
 
+
+How to analyze problems
+========================
+
+- slow query log (finds queries take long time)
+- show engine status (finds deadlock etc..)
+- Lock analyzing query described in http://d.hatena.ne.jp/sh2/20090618 (detect which query is blocked.)
+- myprofiler (finds slow, massive, blocked queries.)
