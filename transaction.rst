@@ -384,7 +384,7 @@ Better example:
                                                     > UPDATE team SET point=point+5 WHERE team_id=3;
 
 Propel doesn't support `FOR UPDATE`.
-So we customize code generator to make ``retrieveByPk4Update()`` automatically.
+So we customize code generator to make ``retrieveByPkForUpdate()`` automatically.
 Here is php + Propel example:
 
 .. code-block:: php
@@ -397,7 +397,7 @@ Here is php + Propel example:
             $con->beginTransaction();
             try {
                 // ...
-                $team = TeamPeer::retrieveByPK4Update($player->$team_id, $con);
+                $team = TeamPeer::retrieveByPKForUpdate($player->getTeamId(), $con);
                 $team->setPoint($team->getPoint() + $got_point);
                 $team->save($con);
                 // ...
@@ -476,7 +476,7 @@ Inserting new player having ``team_id=1234`` should update index on ``team_id`` 
 Updating player having ``id=7`` should lock PK but it's locked if the player's team_id is 1234.
 Such queries are blocked until transaction acquiring the lock is committed.
 
-All other queries modifing ``player`` table can be executed withotu block safely.
+All other queries modifing ``player`` table can be executed without block safely.
 
 example: table lock
 ~~~~~~~~~~~~~~~~~~~~
@@ -679,7 +679,7 @@ example: gap lock
     mysql> begin;
     Query OK, 0 rows affected (0.00 sec)
 
-    mysql> select * from test1 where id=100 for update; # id > 3 の gap が全部ロックされる
+    mysql> select * from test1 where id=100 for update; # Last gap (id > 3) is locked
     Empty set (0.00 sec)
 
                                     mysql> insert into test1 (id, other_id, data) values (4, 60, 10);
@@ -760,11 +760,11 @@ For example, "lock player before team" or "lock row with smaller id first".
             try {
                 // lock lower id first
                 if ($from_id < $to_id) {
-                    $from_account = AccountPeer::retrieveByPk4Update($from_id);
-                    $to_account = AccountPeer::retrieveByPk4Update($to_id);
+                    $from_account = AccountPeer::retrieveByPkForUpdate($from_id);
+                    $to_account = AccountPeer::retrieveByPkForUpdate($to_id);
                 } else {
-                    $to_account = AccountPeer::retrieveByPk4Update($to_id);
-                    $from_account = AccountPeer::retrieveByPk4Update($from_id);
+                    $to_account = AccountPeer::retrieveByPkForUpdate($to_id);
+                    $from_account = AccountPeer::retrieveByPkForUpdate($from_id);
                 }
                 if ($from_account === null) {
                     throw new Exception("Invalid account $from_id");
@@ -823,7 +823,7 @@ Gap lock herd
 
     // person is created before.
 
-    $person_status = PersonStatusPeer::retrieveByPk4Update($person_id);
+    $person_status = PersonStatusPeer::retrieveByPkForUpdate($person_id);
     if ($person_status === null) {
         $person_status = new PersonStatus();
         $person_status->setPersonId($person_id);
