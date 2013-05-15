@@ -172,6 +172,7 @@ How to fetch range
 ``SELECT * FROM country WHERE id>=2 LIMIT 3``:
 
 .. aafig::
+ :textual:
 
                  +--------+
                  | "root" |

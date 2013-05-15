@@ -50,7 +50,8 @@ clean:
 	rm -rf $(BUILDDIR)/*
 
 html:
-	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/mysql-bootcamp
+	cd $(BUILDDIR) && tar cvzf mysql-bootcamp.tar.gz mysql-bootcamp
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
@@ -175,3 +176,7 @@ pseudoxml:
 	$(SPHINXBUILD) -b pseudoxml $(ALLSPHINXOPTS) $(BUILDDIR)/pseudoxml
 	@echo
 	@echo "Build finished. The pseudo-XML files are in $(BUILDDIR)/pseudoxml."
+
+release: html
+	rsync -avK _build/mysql-bootcamp/ kamiya+:public_html/mysql-bootcamp/
+	scp _build/mysql-bootcamp.tar.gz kamiya+:public_html/

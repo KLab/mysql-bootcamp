@@ -376,7 +376,7 @@ Update query automatically acquires lock. ``SELECT ... FOR UPDATE`` also acquire
                                                     > UPDATE team SET point=13 WHERE team_id=3;
                                                     > COMMIT
 
-Better example:
+Better example (less waittime):
 
 .. code:: sql
 
@@ -389,8 +389,8 @@ Better example:
                                                     # But lock time is shoter.
                                                     > UPDATE team SET point=point+5 WHERE team_id=3;
 
-Propel doesn't support `FOR UPDATE`.
-So we customize code generator to make ``retrieveByPkForUpdate()`` automatically.
+Propel's ``SELECT ... FOR UPDATE`` support has several bugs.
+So we've customized code generator to make better ``retrieveByPkForUpdate()`` automatically.
 Here is php + Propel example:
 
 .. code-block:: php
@@ -429,7 +429,8 @@ You can use this not only for selecting by PK.
             team.point += got_point
             #...
 
-You can use ``point=point+n`` too, but it's trickey a bit.
+You can use ``point=point+n`` too on SQLAlchemy. But it's trickey a bit.
+I recommend to write SQL directly.
 
 .. code-block:: python
    :linenos:
