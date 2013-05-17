@@ -137,7 +137,7 @@ Two sessions are separated with indent level.
 
 autocommit=1:
 
-.. code:: sql
+::
 
     mysql> select @@autocommit;  # Check autocommit is enabled.
     +--------------+
@@ -192,7 +192,7 @@ autocommit=1:
 
 autocommit=0:
 
-.. code:: sql
+::
 
     # Disable autocommit in this session.
     mysql> set @@autocommit=0;
@@ -238,7 +238,7 @@ Continued SELECT queries sees the version same to first query.
 example
 ~~~~~~~~
 
-.. code:: sql
+::
 
     mysql> begin;
     Query OK, 0 rows affected (0.00 sec)
@@ -297,7 +297,7 @@ lost update example
 When multiple transaction "Read - Modify - Write" in same time, one transaction
 overwrites another transaction. This problem is called **Lost Update**.
 
-.. code::
+::
 
     # A player adds 3 points to team.
     > SELECT point FROM team WHERE team_id=3;
@@ -472,7 +472,7 @@ After (1) query, other session can't ``INSERT INTO player (..., team_id) VALUES 
 
 But... how can MySQL distinguish queries to blocked?
 
-The first answer is table lock. MySQL can block all queries updating `player` table.
+The first answer is table lock. MySQL can block all queries updating ``player`` table.
 This is big problem. (Q: Can you why this is a big problem?)
 
 So, next answer is key. If you create index to ``player.team_id`` column,
@@ -488,7 +488,7 @@ All other queries modifing ``player`` table can be executed without block safely
 example: table lock
 ~~~~~~~~~~~~~~~~~~~~
 
-.. code::
+::
 
     mysql> begin;
     Query OK, 0 rows affected (0.00 sec)
@@ -716,7 +716,7 @@ example: next key lock
     mysql> begin;
     Query OK, 0 rows affected (0.00 sec)
 
-    mysql> select * from test1 where other_id=70 for update;;
+    mysql> select * from test1 where other_id=70 for update;
     +----+----------+------+
     | id | other_id | data |
     +----+----------+------+
@@ -827,23 +827,26 @@ Gap lock herd
 .. code:: php
 
     <?php
-
     // person is created before.
-
-    $person_status = PersonStatusPeer::retrieveByPkForUpdate($person_id);
+    // person.id is autoincremented PK.
+    // person_status is created when first required.
+    $person_status = PersonStatusPeer::retrieveByPkForUpdate($person->getId(), $con);
     if ($person_status === null) {
+        // **Last gap is locked.**
         $person_status = new PersonStatus();
-        $person_status->setPersonId($person_id);
+        $person_status->setPersonId($person->getId());
     }
-    // initialize...
+    // lots of initializing code...
     $person_status->save($con);
     $con->commit();
 
+When many new users come, many users locks one last gap.
+So you should commit as soon as possible.
 
 How to analyze problems
 ========================
 
-- slow query log (finds queries take long time)
-- show engine status (finds deadlock etc..)
+- slow query log (find queries take long time)
+- show engine status (find deadlock etc..)
 - Lock analyzing query described in http://d.hatena.ne.jp/sh2/20090618 (detect which query is blocked.)
-- myprofiler (finds slow, massive, blocked queries.)
+- `myprofiler <https://github.com/KLab/myprofiler>`_ (find slow, massive, blocked queries.)
