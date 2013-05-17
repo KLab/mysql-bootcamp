@@ -46,9 +46,9 @@ As you can see, select by PK consumes 0.00 sec and select by where consumes
 0.02 sec on table having 100000 records.
 
 If 1M records in Table, selecting without Index may consume 0.2sec. This means
-only 5 (* CPU cores) querys can be executed in one second.
+only 5 (* CPU cores) queries can be executed in one second.
 
-We need to execute thoughounds of queries in one second.
+We need to execute thousands of queries in one second.
 
 
 Data Structure
@@ -286,13 +286,13 @@ index on (a, b)::
     | 60  | 66  | 6   |
     +-----+-----+-----+
 
-1. Index may be bigger than you think. consumes significant space like table. 
+1. Index may be bigger than you think. It consumes significant space like table. 
 
-2. All indicies has PK implicitly.
+2. All indexes has PK implicitly.
 
 3. When you add PK to index manually, the index contains PK twice.
 
-4. If PK is big (ex, ``VARCHAR(255)``), all indicies is big.
+4. If PK is big (ex, ``VARCHAR(255)``), all indexes is big.
 
 5. Index ``(a, b)`` can be used to search by only ``a``.
    So you should remove ``KEY a (a)``.
@@ -376,17 +376,17 @@ Extra
 
 * Using index - need only index.
 * Using where - test each record.
-* Using temporary - needs temporary temble
+* Using temporary - needs temporary table
 * Using filesort - sort by temporary table
 
 
-How to make an effective indicies
+How to make an effective indexes
 ------------------------------------
 
 Index has significant cost. So you should not create index everywhere.
 
 Since finding slow query is easier than finding unnecessary index,
-I recommend start with minimum, obviously required indicies.
+I recommend start with minimum, obviously required indexes.
 
 Slow query log is useful feature to find slow query.
 It logs queries consumes specified execution time.
@@ -398,10 +398,10 @@ Before releasing, check slowlog, find slow queries and consider how to solve.
 To use slow query log:
 
 * slow_query_log - `on` to enable slow query log.
-* log_output - where sloq query log saved.
+* log_output - where slow query log saved.
 
     * `TABLE` - log saved to `mysql.slow_log` table.
-    * `FILE` - log saved to file specifed by `slow_query_log_file`.
+    * `FILE` - log saved to file specified by `slow_query_log_file`.
 
 * long_query_time - queries takes longer this value are logged. (0.01~0.1)
 * log_queries_not_using_indexes - `on` to log queries doesn't using indexes.
