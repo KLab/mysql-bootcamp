@@ -165,9 +165,9 @@ Isolation means result of query in transaction isn&#8217;t affected by another t
 </td></tr></table></div>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">This example has a problem. We discusse it later.</p>
+<p class="last">This example has a problem. We discuss it later.</p>
 </div>
-<p>After transaction, money is completly transferred or not transferred.
+<p>After transaction, money is completely transferred or not transferred.
 Total amount should not be changed. This is atomicity.</p>
 <p>While this transaction, <tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">SUM(amount)</span> <span class="pre">FROM</span> <span class="pre">account</span> <span class="pre">WHERE</span> <span class="pre">id</span> <span class="pre">IN</span> <span class="pre">(:from_id,</span> <span class="pre">:to_id)</span></tt>
 from other transaction always shows right value. Other transaction always see state of before or
@@ -344,10 +344,10 @@ mysql&gt; select * from test1;
 </div>
 <div class="section" id="lock">
 <h2>Lock<a class="headerlink" href="#lock" title="Permalink to this headline">¶</a></h2>
-<p>MVCC isolates between update transaction and readonly transaction automatically.</p>
+<p>MVCC isolates between update transaction and read only transaction automatically.</p>
 <p>But concurrent two update transaction cause <strong>Lost update</strong> problem.</p>
 <div class="section" id="lost-update-example">
-<h3>lost update example<a class="headerlink" href="#lost-update-example" title="Permalink to this headline">¶</a></h3>
+<h3>Lost update example<a class="headerlink" href="#lost-update-example" title="Permalink to this headline">¶</a></h3>
 <p>When multiple transaction &#8220;Read - Modify - Write&#8221; in same time, one transaction
 overwrites another transaction. This problem is called <strong>Lost Update</strong>.</p>
 <div class="highlight-python"><pre># A player adds 3 points to team.
@@ -446,7 +446,7 @@ overwrites another transaction. This problem is called <strong>Lost Update</stro
 
                                                 # Another player in same team adds 5 points.
                                                 # This also waits until left query is committed.
-                                                # But lock time is shoter.
+                                                # But lock time is shorter.
                                                 &gt; UPDATE team SET point=point+5 WHERE team_id=3;</pre>
 </div>
 <p>Propel&#8217;s <tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">...</span> <span class="pre">FOR</span> <span class="pre">UPDATE</span></tt> support has several bugs.
@@ -506,7 +506,7 @@ You can use this not only for selecting by PK.</p>
          <span class="c">#...</span>
 </pre></div>
 </td></tr></table></div>
-<p>You can use <tt class="docutils literal"><span class="pre">point=point+n</span></tt> too on SQLAlchemy. But it&#8217;s trickey a bit.
+<p>You can use <tt class="docutils literal"><span class="pre">point=point+n</span></tt> too on SQLAlchemy. But it&#8217;s tricky a bit.
 I recommend to write SQL directly.</p>
 <div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
  2
@@ -538,7 +538,7 @@ If one lock blocks all other sessions, it&#8217;s called &#8220;global lock&#822
 For example, <tt class="docutils literal"><span class="pre">ALTER</span> <span class="pre">TABLE</span></tt> requires table lock.
 <tt class="docutils literal"><span class="pre">CREATE</span> <span class="pre">INDEX</span></tt> also acquires table lock in MySQL 5.5.
 (MySQL 5.6 supports online create index).</p>
-<p>Normal query may acquires talbe lock too.
+<p>Normal query may acquires table lock too.
 Please consider following case:</p>
 <div class="highlight-python"><pre>&gt; BEGIN;
 &gt; SELECT SUM(point) FROM player WHERE team_id=1234 FOR UPDATE;  -- (1)
@@ -558,10 +558,10 @@ and all affected PK record.</p>
 <p>Inserting new player having <tt class="docutils literal"><span class="pre">team_id=1234</span></tt> should update index on <tt class="docutils literal"><span class="pre">team_id</span></tt> but it&#8217;s locked.
 Updating player having <tt class="docutils literal"><span class="pre">id=7</span></tt> should lock PK but it&#8217;s locked if the player&#8217;s team_id is 1234.
 Such queries are blocked until transaction acquiring the lock is committed.</p>
-<p>All other queries modifing <tt class="docutils literal"><span class="pre">player</span></tt> table can be executed without block safely.</p>
+<p>All other queries modifying <tt class="docutils literal"><span class="pre">player</span></tt> table can be executed without block safely.</p>
 </div>
 <div class="section" id="example-table-lock">
-<h3>example: table lock<a class="headerlink" href="#example-table-lock" title="Permalink to this headline">¶</a></h3>
+<h3>Example: table lock<a class="headerlink" href="#example-table-lock" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-python"><pre>mysql&gt; begin;
 Query OK, 0 rows affected (0.00 sec)
 
@@ -589,7 +589,7 @@ Query OK, 0 rows affected (0.00 sec)
 </div>
 </div>
 <div class="section" id="example-row-lock">
-<h3>example: row lock<a class="headerlink" href="#example-row-lock" title="Permalink to this headline">¶</a></h3>
+<h3>Example: row lock<a class="headerlink" href="#example-row-lock" title="Permalink to this headline">¶</a></h3>
 <div class="code highlight-python"><pre>mysql&gt; begin;
 Query OK, 0 rows affected (0.00 sec)
 
@@ -636,7 +636,7 @@ So <tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre
 transaction beginning version.</p>
 </div>
 <div class="section" id="id2">
-<h3>example<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<h3>Example<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
 <div class="code highlight-python"><pre>mysql&gt; begin;
 Query OK, 0 rows affected (0.00 sec)
 mysql&gt; select * from test1;
@@ -706,7 +706,7 @@ mysql&gt; select * from test1;
 </div>
 <div class="section" id="gap-lock-and-next-key-lock">
 <h3>Gap lock and Next key lock<a class="headerlink" href="#gap-lock-and-next-key-lock" title="Permalink to this headline">¶</a></h3>
-<p>When locking query doesn&#8217;t maches to records, the query locks between rows to
+<p>When locking query doesn&#8217;t matches to records, the query locks between rows to
 block other transaction inserts records matched. This is called Gap lock.</p>
 <a class="reference internal image-reference" href="images/gap_lock.png"><img alt="images/gap_lock.png" src="images/gap_lock.png" style="height: 400px;" /></a>
 <p>When a query locks non-unique key, it also locks gap before and after the records
@@ -714,7 +714,7 @@ to block other transactions inserts records there. This is called next key lock.
 <a class="reference internal image-reference" href="images/next_key_lock.png"><img alt="images/next_key_lock.png" src="images/next_key_lock.png" style="height: 400px;" /></a>
 </div>
 <div class="section" id="example-gap-lock">
-<h3>example: gap lock<a class="headerlink" href="#example-gap-lock" title="Permalink to this headline">¶</a></h3>
+<h3>Example: Gap lock<a class="headerlink" href="#example-gap-lock" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-python"><pre>mysql&gt; show create table test1\G
 *************************** 1. row ***************************
         Table: test1
@@ -752,7 +752,7 @@ Query OK, 0 rows affected (0.00 sec)
 </div>
 </div>
 <div class="section" id="example-next-key-lock">
-<h3>example: next key lock<a class="headerlink" href="#example-next-key-lock" title="Permalink to this headline">¶</a></h3>
+<h3>Example: Next key lock<a class="headerlink" href="#example-next-key-lock" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-python"><pre>mysql&gt; select * from test1;
 +----+----------+------+
 | id | other_id | data |
@@ -795,7 +795,7 @@ Query OK, 0 rows affected (0.00 sec)
 </div>
 </div>
 <div class="section" id="dead-lock">
-<h3>dead lock<a class="headerlink" href="#dead-lock" title="Permalink to this headline">¶</a></h3>
+<h3>Dead lock<a class="headerlink" href="#dead-lock" title="Permalink to this headline">¶</a></h3>
 <p>One of famous problem about lock.</p>
 <p>One session has lock A and trying to get lock B.
 Another session has lock B and trying to get lock A.
@@ -969,24 +969,24 @@ So you should commit as soon as possible.</p>
 </ul>
 </li>
 <li><a class="reference internal" href="#lock">Lock</a><ul>
-<li><a class="reference internal" href="#lost-update-example">lost update example</a></li>
+<li><a class="reference internal" href="#lost-update-example">Lost update example</a></li>
 <li><a class="reference internal" href="#lock-example">lock example</a></li>
 <li><a class="reference internal" href="#row-lock-and-table-lock">row lock and table lock</a></li>
-<li><a class="reference internal" href="#example-table-lock">example: table lock</a></li>
-<li><a class="reference internal" href="#example-row-lock">example: row lock</a></li>
+<li><a class="reference internal" href="#example-table-lock">Example: table lock</a></li>
+<li><a class="reference internal" href="#example-row-lock">Example: row lock</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#more-about-locks">More about locks</a><ul>
 <li><a class="reference internal" href="#mvcc-and-updating">MVCC and Updating</a></li>
-<li><a class="reference internal" href="#id2">example</a></li>
+<li><a class="reference internal" href="#id2">Example</a></li>
 <li><a class="reference internal" href="#gap-lock-and-next-key-lock">Gap lock and Next key lock</a></li>
-<li><a class="reference internal" href="#example-gap-lock">example: gap lock</a></li>
-<li><a class="reference internal" href="#example-next-key-lock">example: next key lock</a></li>
+<li><a class="reference internal" href="#example-gap-lock">Example: Gap lock</a></li>
+<li><a class="reference internal" href="#example-next-key-lock">Example: Next key lock</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#realistic-problem-examples">Realistic problem examples</a><ul>
 <li><a class="reference internal" href="#too-long-lock">Too long lock</a></li>
-<li><a class="reference internal" href="#dead-lock">dead lock</a></li>
+<li><a class="reference internal" href="#dead-lock">Dead lock</a></li>
 <li><a class="reference internal" href="#gap-lock-herd">Gap lock herd</a></li>
 </ul>
 </li>

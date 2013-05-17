@@ -91,8 +91,8 @@ mysql&gt; select * from test1 where val=200;
 <p>As you can see, select by PK consumes 0.00 sec and select by where consumes
 0.02 sec on table having 100000 records.</p>
 <p>If 1M records in Table, selecting without Index may consume 0.2sec. This means
-only 5 (* CPU cores) querys can be executed in one second.</p>
-<p>We need to execute thoughounds of queries in one second.</p>
+only 5 (* CPU cores) queries can be executed in one second.</p>
+<p>We need to execute thousands of queries in one second.</p>
 </div>
 <div class="section" id="data-structure">
 <h2>Data Structure<a class="headerlink" href="#data-structure" title="Permalink to this headline">¶</a></h2>
@@ -238,10 +238,10 @@ actual record.</p>
 +-----+-----+-----+</pre>
 </div>
 <ol class="arabic simple">
-<li>Index may be bigger than you think. consumes significant space like table.</li>
-<li>All indicies has PK implicitly.</li>
+<li>Index may be bigger than you think. It consumes significant space like table.</li>
+<li>All indexes has PK implicitly.</li>
 <li>When you add PK to index manually, the index contains PK twice.</li>
-<li>If PK is big (ex, <tt class="docutils literal"><span class="pre">VARCHAR(255)</span></tt>), all indicies is big.</li>
+<li>If PK is big (ex, <tt class="docutils literal"><span class="pre">VARCHAR(255)</span></tt>), all indexes is big.</li>
 <li>Index <tt class="docutils literal"><span class="pre">(a,</span> <span class="pre">b)</span></tt> can be used to search by only <tt class="docutils literal"><span class="pre">a</span></tt>.
 So you should remove <tt class="docutils literal"><span class="pre">KEY</span> <span class="pre">a</span> <span class="pre">(a)</span></tt>.</li>
 </ol>
@@ -312,16 +312,16 @@ If this value is large (&gt;1000), it&#8217;s problem.</p>
 <ul class="simple">
 <li>Using index - need only index.</li>
 <li>Using where - test each record.</li>
-<li>Using temporary - needs temporary temble</li>
+<li>Using temporary - needs temporary table</li>
 <li>Using filesort - sort by temporary table</li>
 </ul>
 </div>
 </div>
-<div class="section" id="how-to-make-an-effective-indicies">
-<h2>How to make an effective indicies<a class="headerlink" href="#how-to-make-an-effective-indicies" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="how-to-make-an-effective-indexes">
+<h2>How to make an effective indexes<a class="headerlink" href="#how-to-make-an-effective-indexes" title="Permalink to this headline">¶</a></h2>
 <p>Index has significant cost. So you should not create index everywhere.</p>
 <p>Since finding slow query is easier than finding unnecessary index,
-I recommend start with minimum, obviously required indicies.</p>
+I recommend start with minimum, obviously required indexes.</p>
 <p>Slow query log is useful feature to find slow query.
 It logs queries consumes specified execution time.</p>
 <p>You can insert many dummy data to development environment.
@@ -331,11 +331,11 @@ Before releasing, check slowlog, find slow queries and consider how to solve.
 <ul>
 <li><p class="first">slow_query_log - <cite>on</cite> to enable slow query log.</p>
 </li>
-<li><p class="first">log_output - where sloq query log saved.</p>
+<li><p class="first">log_output - where slow query log saved.</p>
 <blockquote>
 <div><ul class="simple">
 <li><cite>TABLE</cite> - log saved to <cite>mysql.slow_log</cite> table.</li>
-<li><cite>FILE</cite> - log saved to file specifed by <cite>slow_query_log_file</cite>.</li>
+<li><cite>FILE</cite> - log saved to file specified by <cite>slow_query_log_file</cite>.</li>
 </ul>
 </div></blockquote>
 </li>
@@ -373,7 +373,7 @@ Before releasing, check slowlog, find slow queries and consider how to solve.
 <li><a class="reference internal" href="#extra">Extra</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#how-to-make-an-effective-indicies">How to make an effective indicies</a></li>
+<li><a class="reference internal" href="#how-to-make-an-effective-indexes">How to make an effective indexes</a></li>
 </ul>
 </li>
 </ul>
