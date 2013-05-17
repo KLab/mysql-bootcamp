@@ -1,0 +1,1040 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Transaction &mdash; MySQL Bootcamp 2013 documentation</title>
+    
+    <link rel="stylesheet" href="static/default.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2013',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <script type="text/javascript" src="static/sidebar.js"></script>
+    <link rel="top" title="MySQL Bootcamp 2013 documentation" href="index.html" />
+    <link rel="prev" title="Index (key)" href="key.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="key.html" title="Index (key)"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">MySQL Bootcamp 2013 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="transaction">
+<h1>Transaction<a class="headerlink" href="#transaction" title="Permalink to this headline">¶</a></h1>
+<p>This chapter describes Atomicity and Isolation in MySQL.</p>
+<div class="section" id="what-s-transaction">
+<h2>What&#8217;s transaction<a class="headerlink" href="#what-s-transaction" title="Permalink to this headline">¶</a></h2>
+<p>Transaction is an unit of work.</p>
+<p>Since many users (even one user) access to system concurrently,
+Database should support <strong>atomicity</strong> and <strong>isolation</strong> for transaction.</p>
+<p>Atomicity means &#8220;do all, or do nothing&#8221;.
+Isolation means result of query in transaction isn&#8217;t affected by another transaction.</p>
+<p>Consider situation on transferring money from account A to account B.</p>
+<p>The schema:</p>
+<div class="code sql highlight-python"><pre>create table account (
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    amount INTEGER NOT NULL DEFAULT 0
+)</pre>
+</div>
+<p>php with Propel:</p>
+<div class="highlight-php"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29</pre></div></td><td class="code"><div class="highlight"><pre><span class="cp">&lt;?php</span>
+<span class="k">class</span> <span class="nc">AccountService</span> <span class="p">{</span>
+    <span class="k">static</span> <span class="k">function</span> <span class="nf">transfer</span><span class="p">(</span><span class="nx">int</span> <span class="nv">$from_id</span><span class="p">,</span> <span class="nx">int</span> <span class="nv">$to_id</span><span class="p">,</span> <span class="nx">int</span> <span class="nv">$amount</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nv">$con</span> <span class="o">=</span> <span class="nx">PropelPDO</span><span class="o">::</span><span class="na">getConnection</span><span class="p">(</span><span class="s1">&#39;master&#39;</span><span class="p">);</span>
+        <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">beginTransaction</span><span class="p">();</span>
+        <span class="k">try</span> <span class="p">{</span>
+            <span class="nv">$from_account</span> <span class="o">=</span> <span class="nx">AccountPeer</span><span class="o">::</span><span class="na">retrieveByPK</span><span class="p">(</span><span class="nv">$from_id</span><span class="p">);</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nv">$from_account</span> <span class="o">===</span> <span class="k">null</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">throw</span> <span class="k">new</span> <span class="nx">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid account </span><span class="si">$from_id</span><span class="s2">&quot;</span><span class="p">);</span>
+            <span class="p">}</span>
+            <span class="nv">$to_account</span> <span class="o">=</span> <span class="nx">AccountPeer</span><span class="o">::</span><span class="na">retrieveByPK</span><span class="p">(</span><span class="nv">$to_id</span><span class="p">);</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nv">$to_account</span> <span class="o">===</span> <span class="k">null</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">throw</span> <span class="k">new</span> <span class="nx">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid account </span><span class="si">$to_id</span><span class="s2">&quot;</span><span class="p">);</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nv">$from_account</span><span class="o">-&gt;</span><span class="na">getAmount</span><span class="p">()</span> <span class="o">&lt;</span> <span class="nv">$amount</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">throw</span> <span class="k">new</span> <span class="nx">Exception</span><span class="p">(</span><span class="s2">&quot;account </span><span class="si">$from_id</span><span class="s2"> doesn&#39;t have enough money. (&quot;</span> <span class="o">.</span>
+                                    <span class="nv">$from_account</span><span class="o">-&gt;</span><span class="na">getAmount</span><span class="p">()</span> <span class="o">.</span> <span class="s2">&quot; &lt; </span><span class="si">$amount</span><span class="s2">)&quot;</span><span class="p">);</span>
+            <span class="p">}</span>
+            <span class="nv">$from_account</span><span class="o">-&gt;</span><span class="na">setAmount</span><span class="p">(</span><span class="nv">$from_account</span><span class="o">-&gt;</span><span class="na">getAmount</span><span class="p">()</span> <span class="o">-</span> <span class="nv">$amount</span><span class="p">);</span>
+            <span class="nv">$from_account</span><span class="o">-&gt;</span><span class="na">save</span><span class="p">(</span><span class="nv">$con</span><span class="p">);</span>
+            <span class="nv">$to_account</span><span class="o">-&gt;</span><span class="na">setAmount</span><span class="p">(</span><span class="nv">$to_account</span><span class="o">-&gt;</span><span class="na">getAmount</span><span class="p">()</span> <span class="o">+</span> <span class="nv">$amount</span><span class="p">);</span>
+            <span class="nv">$to_account</span><span class="o">-&gt;</span><span class="na">save</span><span class="p">(</span><span class="nv">$con</span><span class="p">);</span>
+            <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">commit</span><span class="p">();</span>
+        <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">Exception</span> <span class="nv">$e</span><span class="p">)</span> <span class="p">{</span>
+            <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">rollback</span><span class="p">();</span>
+            <span class="k">throw</span> <span class="nv">$e</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<p>Python with SQLAlchemy:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre></div></td><td class="code"><div class="highlight"><pre><span class="c"># accountservice.py</span>
+<span class="k">def</span> <span class="nf">transfer</span><span class="p">(</span><span class="n">from_id</span><span class="p">,</span> <span class="n">to_id</span><span class="p">,</span> <span class="n">amount</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">Session</span><span class="o">.</span><span class="n">begin</span><span class="p">():</span>  <span class="c"># Session manages connection and Unit of Work.</span>
+        <span class="c"># commit on exit without exception.</span>
+        <span class="c"># Or rollback on exit with exception</span>
+        <span class="n">from_account</span> <span class="o">=</span> <span class="n">Session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Account</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">from_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">from_account</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Bad account id: </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">from_id</span><span class="p">,))</span>
+
+        <span class="k">if</span> <span class="n">from_account</span><span class="o">.</span><span class="n">amount</span> <span class="o">&lt;</span> <span class="n">amount</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;account </span><span class="si">%d</span><span class="s"> doesn&#39;t have enough money. (</span><span class="si">%d</span><span class="s"> &lt; </span><span class="si">%d</span><span class="s">)&quot;</span> <span class="o">%</span>
+                            <span class="p">(</span><span class="n">from_id</span><span class="p">,</span> <span class="n">from_account</span><span class="o">.</span><span class="n">amount</span><span class="p">,</span> <span class="n">amount</span><span class="p">))</span>
+
+        <span class="n">to_account</span> <span class="o">=</span> <span class="n">Session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Account</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">to_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">to_account</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Bad account id: </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">to_id</span><span class="p">,))</span>
+
+        <span class="n">from_account</span><span class="o">.</span><span class="n">amount</span> <span class="o">-=</span> <span class="n">amount</span>
+        <span class="n">to_account</span><span class="o">.</span><span class="n">amount</span> <span class="o">+=</span> <span class="n">amount</span>
+</pre></div>
+</td></tr></table></div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This example has a problem. We discusse it later.</p>
+</div>
+<p>After transaction, money is completly transferred or not transferred.
+Total amount should not be changed. This is atomicity.</p>
+<p>While this transaction, <tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">SUM(amount)</span> <span class="pre">FROM</span> <span class="pre">account</span> <span class="pre">WHERE</span> <span class="pre">id</span> <span class="pre">IN</span> <span class="pre">(:from_id,</span> <span class="pre">:to_id)</span></tt>
+from other transaction always shows right value. Other transaction always see state of before or
+after transaction but not intermediate state.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>MySQL can select transaction isolation level. It&#8217;s default is &#8220;repeatable read&#8221;.
+This chapter suppose this transaction isolation level.</p>
+<p>Other isolation levels are:</p>
+<blockquote class="last">
+<div><ul class="simple">
+<li>read uncommitted</li>
+<li>read committed</li>
+<li>serialized</li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="autocommit">
+<h2>autocommit<a class="headerlink" href="#autocommit" title="Permalink to this headline">¶</a></h2>
+<p>MySQL has <strong>autocommit</strong> mode that is default on.</p>
+<p>autocommit means one query is one transaction unless explicitly <tt class="docutils literal"><span class="pre">BEGIN</span></tt>.
+When autocommit is disabled, first query starts transaction implicitly and
+<tt class="docutils literal"><span class="pre">COMMIT</span></tt> is required to save changes.</p>
+<div class="section" id="example">
+<h3>example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<p>In this chapter, following table is used repeatedly as example.</p>
+<div class="code sql highlight-python"><pre>CREATE TABLE `test1` (
+    `id` int(11) NOT NULL,
+    `other_id` int(11) DEFAULT NULL,
+    `data` int(11) DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_1` (`other_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;</pre>
+</div>
+<p>Start 2 mysql session. Update from one session and check from other session.
+Two sessions are separated with indent level.</p>
+<p>autocommit=1:</p>
+<div class="highlight-python"><pre>mysql&gt; select @@autocommit;  # Check autocommit is enabled.
++--------------+
+| @@autocommit |
++--------------+
+|            1 |
++--------------+
+1 row in set (0.00 sec)
+
+mysql&gt; insert into test1 (id, other_id, data) values (1, 100, 123);
+Query OK, 1 row affected (0.01 sec)
+
+                                                # inserted row can be seen from another session.
+                                                mysql&gt; select * from test1;
+                                                +----+----------+------+
+                                                | id | other_id | data |
+                                                +----+----------+------+
+                                                |  1 |      100 |  123 |
+                                                +----+----------+------+
+                                                1 row in set (0.00 sec)
+
+# explicitly BEGIN transaction
+mysql&gt; begin;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; insert into test1 (id, other_id, data) values (2, 90, 100);
+Query OK, 1 row affected (0.00 sec)
+
+                                                # new row can't be seen from another session.
+                                                # It's not committed yet.
+                                                mysql&gt; select * from test1;
+                                                +----+----------+------+
+                                                | id | other_id | data |
+                                                +----+----------+------+
+                                                |  1 |      100 |  123 |
+                                                +----+----------+------+
+                                                1 row in set (0.00 sec)
+
+mysql&gt; commit;
+Query OK, 0 rows affected (0.01 sec)
+
+                                                # committed row can be seen.
+                                                mysql&gt; select * from test1;
+                                                +----+----------+------+
+                                                | id | other_id | data |
+                                                +----+----------+------+
+                                                |  1 |      100 |  123 |
+                                                |  2 |       90 |  100 |
+                                                +----+----------+------+
+                                                2 rows in set (0.00 sec)</pre>
+</div>
+<p>autocommit=0:</p>
+<div class="highlight-python"><pre># Disable autocommit in this session.
+mysql&gt; set @@autocommit=0;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; insert into test1 (id,other_id,data) values (3,80,99);
+Query OK, 1 row affected (0.00 sec)
+
+                                                # id=3 can't be seen yet.
+                                                mysql&gt; select * from test1;
+                                                +----+----------+------+
+                                                | id | other_id | data |
+                                                +----+----------+------+
+                                                |  1 |      100 |  123 |
+                                                |  2 |       90 |  100 |
+                                                +----+----------+------+
+                                                2 rows in set (0.00 sec)
+
+mysql&gt; commit;
+Query OK, 0 rows affected (0.00 sec)
+
+                                                mysql&gt; select * from test1;
+                                                +----+----------+------+
+                                                | id | other_id | data |
+                                                +----+----------+------+
+                                                |  1 |      100 |  123 |
+                                                |  2 |       90 |  100 |
+                                                |  3 |       80 |   99 |
+                                                +----+----------+------+
+                                                3 rows in set (0.00 sec)</pre>
+</div>
+</div>
+</div>
+<div class="section" id="mvcc">
+<h2>MVCC<a class="headerlink" href="#mvcc" title="Permalink to this headline">¶</a></h2>
+<p><strong>MVCC</strong> (Multi Version Concurrency Control) achieves both of concurrent update and isolation.</p>
+<p>While execute update transaction, MVCC doesn&#8217;t overwrite but create <strong>new version</strong>.</p>
+<p>First query (including SELECT query) in transaction uses newest version.
+Continued SELECT queries sees the version same to first query.</p>
+<div class="section" id="id1">
+<h3>example<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python"><pre>mysql&gt; begin;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; select * from test1;  # This transaction is set to this version.
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  1 |      100 |  123 |
+|  2 |       90 |  100 |
+|  3 |       80 |   99 |
++----+----------+------+
+3 rows in set (0.00 sec)
+
+                                                # update (and autocommit) from another session creates new version.
+                                                mysql&gt; update test1 set other_id=70 where id=2;
+                                                Query OK, 1 row affected (0.00 sec)
+
+# But left session continue to see old version.
+mysql&gt; select * from test1;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  1 |      100 |  123 |
+|  2 |       90 |  100 |
+|  3 |       80 |   99 |
++----+----------+------+
+3 rows in set (0.00 sec)
+
+# Stop transaction
+mysql&gt; rollback;
+Query OK, 0 rows affected (0.00 sec)
+
+# Next (autocommitted) transaction sees newest version.
+mysql&gt; select * from test1;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  1 |      100 |  123 |
+|  2 |       70 |  100 |
+|  3 |       80 |   99 |
++----+----------+------+
+3 rows in set (0.00 sec)</pre>
+</div>
+</div>
+</div>
+<div class="section" id="lock">
+<h2>Lock<a class="headerlink" href="#lock" title="Permalink to this headline">¶</a></h2>
+<p>MVCC isolates between update transaction and readonly transaction automatically.</p>
+<p>But concurrent two update transaction cause <strong>Lost update</strong> problem.</p>
+<div class="section" id="lost-update-example">
+<h3>lost update example<a class="headerlink" href="#lost-update-example" title="Permalink to this headline">¶</a></h3>
+<p>When multiple transaction &#8220;Read - Modify - Write&#8221; in same time, one transaction
+overwrites another transaction. This problem is called <strong>Lost Update</strong>.</p>
+<div class="highlight-python"><pre># A player adds 3 points to team.
+&gt; SELECT point FROM team WHERE team_id=3;
+5
+
+                                                # Another player in same team adds 5 points.
+                                                &gt; SELECT point FROM team WHERE team_id=3;
+                                                5
+
+&gt; UPDATE team SET point=8 WHERE team_id=3;
+
+                                                &gt; UPDATE team SET point=10 WHERE team_id=3;
+
+# 3 points disappeared...</pre>
+</div>
+<p>In php + Propel:</p>
+<div class="highlight-php"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre></div></td><td class="code"><div class="highlight"><pre><span class="cp">&lt;?php</span>
+<span class="k">class</span> <span class="nc">QuestService</span> <span class="p">{</span>
+    <span class="k">static</span> <span class="k">function</span> <span class="nf">doQuest</span><span class="p">(</span><span class="nx">Player</span> <span class="nv">$player</span><span class="p">,</span> <span class="nx">int</span> <span class="nv">$quest_id</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nv">$con</span> <span class="o">=</span> <span class="nx">Propel</span><span class="o">::</span><span class="na">getConnection</span><span class="p">(</span><span class="s1">&#39;master&#39;</span><span class="p">);</span>
+        <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">beginTransaction</span><span class="p">();</span>
+        <span class="k">try</span> <span class="p">{</span>
+            <span class="c1">// ...</span>
+            <span class="nv">$team</span> <span class="o">=</span> <span class="nx">TeamPeer</span><span class="o">::</span><span class="na">retrieveByPK</span><span class="p">(</span><span class="nv">$player</span><span class="o">-&gt;</span><span class="na">getTeamId</span><span class="p">(),</span> <span class="nv">$con</span><span class="p">);</span>
+            <span class="nv">$team</span><span class="o">-&gt;</span><span class="na">setPoint</span><span class="p">(</span><span class="nv">$team</span><span class="o">-&gt;</span><span class="na">getPoint</span><span class="p">()</span> <span class="o">+</span> <span class="nv">$got_point</span><span class="p">);</span>
+            <span class="nv">$team</span><span class="o">-&gt;</span><span class="na">save</span><span class="p">(</span><span class="nv">$con</span><span class="p">);</span>
+            <span class="c1">// ...</span>
+            <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">commit</span><span class="p">();</span>
+        <span class="p">}</span> <span class="nx">except</span> <span class="p">(</span><span class="nx">Exception</span> <span class="nv">$e</span><span class="p">)</span> <span class="p">{</span>
+            <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">rollback</span><span class="p">();</span>
+            <span class="k">throw</span> <span class="nv">$e</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<p>In Python + SQLAlchemy:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="highlight"><pre><span class="c"># quest_service.py</span>
+<span class="k">def</span> <span class="nf">do_quest</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">quest_id</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">Session</span><span class="o">.</span><span class="n">begin</span><span class="p">():</span>
+        <span class="c">#...</span>
+        <span class="n">team</span> <span class="o">=</span> <span class="n">Session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Team</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">player</span><span class="o">.</span><span class="n">team_id</span><span class="p">)</span>
+        <span class="n">team</span><span class="o">.</span><span class="n">point</span> <span class="o">+=</span> <span class="n">got_point</span>
+        <span class="c">#...</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="lock-example">
+<h3>lock example<a class="headerlink" href="#lock-example" title="Permalink to this headline">¶</a></h3>
+<p>Update query automatically acquires lock. <tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">...</span> <span class="pre">FOR</span> <span class="pre">UPDATE</span></tt> also acquire lock.</p>
+<div class="code sql highlight-python"><pre># A player adds 3 points to team.
+&gt; BEGIN
+&gt; SELECT point FROM team WHERE team_id=3 FOR UPDATE;
+5
+
+                                                # Another player in same team adds 5 points.
+                                                &gt; BEGIN
+                                                &gt; SELECT point FROM team WHERE team_id=3 FOR UPDATE;
+                                                # ... waiting...
+
+&gt; UPDATE team SET point=8 WHERE team_id=3;
+&gt; COMMIT
+
+                                                8
+                                                &gt; UPDATE team SET point=13 WHERE team_id=3;
+                                                &gt; COMMIT</pre>
+</div>
+<p>Better example (less waittime):</p>
+<div class="code sql highlight-python"><pre># A player adds 3 points to team.
+# This locks only while single query (autocommit)
+&gt; UPDATE team SET point=point+3 WHERE team_id=3;
+
+                                                # Another player in same team adds 5 points.
+                                                # This also waits until left query is committed.
+                                                # But lock time is shoter.
+                                                &gt; UPDATE team SET point=point+5 WHERE team_id=3;</pre>
+</div>
+<p>Propel&#8217;s <tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">...</span> <span class="pre">FOR</span> <span class="pre">UPDATE</span></tt> support has several bugs.
+So we&#8217;ve customized code generator to make better <tt class="docutils literal"><span class="pre">retrieveByPkForUpdate()</span></tt> automatically.
+Here is php + Propel example:</p>
+<div class="highlight-php"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre></div></td><td class="code"><div class="highlight"><pre><span class="x"> </span><span class="cp">&lt;?php</span>
+ <span class="k">class</span> <span class="nc">QuestService</span> <span class="p">{</span>
+     <span class="k">static</span> <span class="k">function</span> <span class="nf">doQuest</span><span class="p">(</span><span class="nx">Player</span> <span class="nv">$player</span><span class="p">,</span> <span class="nx">int</span> <span class="nv">$quest_id</span><span class="p">)</span> <span class="p">{</span>
+         <span class="nv">$con</span> <span class="o">=</span> <span class="nx">Propel</span><span class="o">::</span><span class="na">getConnection</span><span class="p">(</span><span class="s1">&#39;master&#39;</span><span class="p">);</span>
+         <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">beginTransaction</span><span class="p">();</span>
+         <span class="k">try</span> <span class="p">{</span>
+             <span class="c1">// ...</span>
+             <span class="nv">$team</span> <span class="o">=</span> <span class="nx">TeamPeer</span><span class="o">::</span><span class="na">retrieveByPKForUpdate</span><span class="p">(</span><span class="nv">$player</span><span class="o">-&gt;</span><span class="na">getTeamId</span><span class="p">(),</span> <span class="nv">$con</span><span class="p">);</span>
+             <span class="nv">$team</span><span class="o">-&gt;</span><span class="na">setPoint</span><span class="p">(</span><span class="nv">$team</span><span class="o">-&gt;</span><span class="na">getPoint</span><span class="p">()</span> <span class="o">+</span> <span class="nv">$got_point</span><span class="p">);</span>
+             <span class="nv">$team</span><span class="o">-&gt;</span><span class="na">save</span><span class="p">(</span><span class="nv">$con</span><span class="p">);</span>
+             <span class="c1">// ...</span>
+             <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">commit</span><span class="p">();</span>
+         <span class="p">}</span> <span class="nx">except</span> <span class="p">(</span><span class="nx">Exception</span> <span class="nv">$e</span><span class="p">)</span> <span class="p">{</span>
+             <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">rollback</span><span class="p">();</span>
+             <span class="k">throw</span> <span class="nv">$e</span><span class="p">;</span>
+         <span class="p">}</span>
+     <span class="p">}</span>
+ <span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<p>SQLAlchemy supports <tt class="docutils literal"><span class="pre">FOR</span> <span class="pre">UPDATE</span></tt> as <tt class="docutils literal"><span class="pre">query.with_lockmode('update')</span></tt>.
+You can use this not only for selecting by PK.</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="highlight"><pre> <span class="c"># quest_service.py</span>
+ <span class="k">def</span> <span class="nf">do_quest</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">quest_id</span><span class="p">):</span>
+     <span class="k">with</span> <span class="n">Session</span><span class="o">.</span><span class="n">begin</span><span class="p">():</span>
+         <span class="c">#...</span>
+         <span class="n">team</span> <span class="o">=</span> <span class="n">Session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Team</span><span class="p">)</span><span class="o">.</span><span class="n">with_lockmode</span><span class="p">(</span><span class="s">&#39;update&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">player</span><span class="o">.</span><span class="n">team_id</span><span class="p">)</span>
+         <span class="n">team</span><span class="o">.</span><span class="n">point</span> <span class="o">+=</span> <span class="n">got_point</span>
+         <span class="c">#...</span>
+</pre></div>
+</td></tr></table></div>
+<p>You can use <tt class="docutils literal"><span class="pre">point=point+n</span></tt> too on SQLAlchemy. But it&#8217;s trickey a bit.
+I recommend to write SQL directly.</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10</pre></div></td><td class="code"><div class="highlight"><pre> <span class="c"># quest_service.py</span>
+ <span class="k">def</span> <span class="nf">do_quest</span><span class="p">(</span><span class="n">player</span><span class="p">,</span> <span class="n">quest_id</span><span class="p">):</span>
+     <span class="k">with</span> <span class="n">Session</span><span class="o">.</span><span class="n">begin</span><span class="p">():</span>
+         <span class="c">#...</span>
+         <span class="n">team</span> <span class="o">=</span> <span class="n">Session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Team</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">player</span><span class="o">.</span><span class="n">team_id</span><span class="p">)</span>
+         <span class="c"># `Team.point + got_point` is query expression.</span>
+         <span class="c"># This query is executed on saving changes.</span>
+         <span class="c"># Result value will be fetched after save.</span>
+         <span class="n">team</span><span class="o">.</span><span class="n">point</span> <span class="o">=</span> <span class="n">Team</span><span class="o">.</span><span class="n">point</span> <span class="o">+</span> <span class="n">got_point</span>
+         <span class="c">#...</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="row-lock-and-table-lock">
+<h3>row lock and table lock<a class="headerlink" href="#row-lock-and-table-lock" title="Permalink to this headline">¶</a></h3>
+<p>One very important thing about lock is granularity.
+If one lock blocks all other sessions, it&#8217;s called &#8220;global lock&#8221;.</p>
+<p>In MySQL, global lock is rare. But sometimes table lock happens.
+For example, <tt class="docutils literal"><span class="pre">ALTER</span> <span class="pre">TABLE</span></tt> requires table lock.
+<tt class="docutils literal"><span class="pre">CREATE</span> <span class="pre">INDEX</span></tt> also acquires table lock in MySQL 5.5.
+(MySQL 5.6 supports online create index).</p>
+<p>Normal query may acquires talbe lock too.
+Please consider following case:</p>
+<div class="highlight-python"><pre>&gt; BEGIN;
+&gt; SELECT SUM(point) FROM player WHERE team_id=1234 FOR UPDATE;  -- (1)
+42
+&gt; UPDATE team SET total_point=42 WHERE team_id=1234;
+&gt; COMMIT</pre>
+</div>
+<p>After (1) query, other session can&#8217;t <tt class="docutils literal"><span class="pre">INSERT</span> <span class="pre">INTO</span> <span class="pre">player</span> <span class="pre">(...,</span> <span class="pre">team_id)</span> <span class="pre">VALUES</span> <span class="pre">(...,</span> <span class="pre">1234)</span></tt>,
+<tt class="docutils literal"><span class="pre">UPDATE</span> <span class="pre">player</span> <span class="pre">SET</span> <span class="pre">point=point+5</span> <span class="pre">WHERE</span> <span class="pre">id=7</span></tt> (player id 7 belongs to team 1234), and
+<tt class="docutils literal"><span class="pre">UPDATE</span> <span class="pre">player</span> <span class="pre">SET</span> <span class="pre">team_id=7743</span> <span class="pre">WHERE</span> <span class="pre">id=7</span></tt>.</p>
+<p>But... how can MySQL distinguish queries to blocked?</p>
+<p>The first answer is table lock. MySQL can block all queries updating <tt class="docutils literal"><span class="pre">player</span></tt> table.
+This is big problem. (Q: Can you why this is a big problem?)</p>
+<p>So, next answer is key. If you create index to <tt class="docutils literal"><span class="pre">player.team_id</span></tt> column,
+queries like <tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">...</span> <span class="pre">WHERE</span> <span class="pre">team_id=1234</span> <span class="pre">FOR</span> <span class="pre">UPDATE</span></tt> locks <tt class="docutils literal"><span class="pre">team_id=1234</span></tt> index record
+and all affected PK record.</p>
+<p>Inserting new player having <tt class="docutils literal"><span class="pre">team_id=1234</span></tt> should update index on <tt class="docutils literal"><span class="pre">team_id</span></tt> but it&#8217;s locked.
+Updating player having <tt class="docutils literal"><span class="pre">id=7</span></tt> should lock PK but it&#8217;s locked if the player&#8217;s team_id is 1234.
+Such queries are blocked until transaction acquiring the lock is committed.</p>
+<p>All other queries modifing <tt class="docutils literal"><span class="pre">player</span></tt> table can be executed without block safely.</p>
+</div>
+<div class="section" id="example-table-lock">
+<h3>example: table lock<a class="headerlink" href="#example-table-lock" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python"><pre>mysql&gt; begin;
+Query OK, 0 rows affected (0.00 sec)
+
+# "data" column doesn't have index. So this is table lock.
+mysql&gt; select * from test1 where data=100 for update;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  2 |       70 |  100 |
++----+----------+------+
+1 row in set (0.00 sec)
+
+                                mysql&gt; select * from test1 where id=1 for update;
+                                # blocked...
+
+mysql&gt; rollback;
+Query OK, 0 rows affected (0.00 sec)
+
+                                +----+----------+------+
+                                | id | other_id | data |
+                                +----+----------+------+
+                                |  1 |      100 |  123 |
+                                +----+----------+------+
+                                1 row in set (12.13 sec)</pre>
+</div>
+</div>
+<div class="section" id="example-row-lock">
+<h3>example: row lock<a class="headerlink" href="#example-row-lock" title="Permalink to this headline">¶</a></h3>
+<div class="code highlight-python"><pre>mysql&gt; begin;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; select * from test1 where id=2 for update;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  2 |       70 |  100 |
++----+----------+------+
+1 row in set (0.00 sec)
+
+                                # locking id=2 doesn't blocks id=1.
+                                mysql&gt; select * from test1 where id=1 for update;
+                                +----+----------+------+
+                                | id | other_id | data |
+                                +----+----------+------+
+                                |  1 |      100 |  123 |
+                                +----+----------+------+
+                                1 row in set (0.00 sec)
+
+                                mysql&gt; select * from test1 where id=2 for update;
+                                # blocked...
+
+mysql&gt; rollback;
+Query OK, 0 rows affected (0.00 sec)
+
+                                +----+----------+------+
+                                | id | other_id | data |
+                                +----+----------+------+
+                                |  2 |       70 |  100 |
+                                +----+----------+------+
+                                1 row in set (2.86 sec)</pre>
+</div>
+</div>
+</div>
+<div class="section" id="more-about-locks">
+<h2>More about locks<a class="headerlink" href="#more-about-locks" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="mvcc-and-updating">
+<h3>MVCC and Updating<a class="headerlink" href="#mvcc-and-updating" title="Permalink to this headline">¶</a></h3>
+<p>As I said before, <tt class="docutils literal"><span class="pre">SELECT</span></tt> returns may be old version.
+This also cause lost update.
+So <tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">...</span> <span class="pre">FOR</span> <span class="pre">UPDATE</span></tt> ignores MVCC and returns newest value.</p>
+<p>And after updating record, <tt class="docutils literal"><span class="pre">SELECT</span></tt> returns updated version instead of
+transaction beginning version.</p>
+</div>
+<div class="section" id="id2">
+<h3>example<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<div class="code highlight-python"><pre>mysql&gt; begin;
+Query OK, 0 rows affected (0.00 sec)
+mysql&gt; select * from test1;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  1 |      100 |  123 |
+|  2 |       70 |  100 |
+|  3 |       89 |   99 |
+|  4 |       60 |   10 |
++----+----------+------+
+4 rows in set (0.00 sec)
+
+                                mysql&gt; update test1 set other_id=0 where id in (2,3);
+                                Query OK, 2 rows affected (0.01 sec)
+                                Rows matched: 2  Changed: 2  Warnings: 0
+
+# normal select returns old version because of MVCC.
+mysql&gt; select * from test1;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  1 |      100 |  123 |
+|  2 |       70 |  100 |
+|  3 |       89 |   99 |
+|  4 |       60 |   10 |
++----+----------+------+
+4 rows in set (0.00 sec)
+
+# But SELECT...FOR UPDATE returns newest value.
+mysql&gt; select * from test1 where id=2 for update;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  2 |        0 |  100 |
++----+----------+------+
+1 row in set (0.01 sec)
+
+# Again, normal select returns old version because of MVCC.
+mysql&gt; select * from test1;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  1 |      100 |  123 |
+|  2 |       70 |  100 |
+|  3 |       89 |   99 |
+|  4 |       60 |   10 |
++----+----------+------+
+4 rows in set (0.00 sec)
+
+mysql&gt; update test1 set other_id=1000 where id=2;
+Query OK, 1 row affected (0.00 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+# after updating, values of id=2 row are updated version.
+mysql&gt; select * from test1;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  1 |      100 |  123 |
+|  2 |     1000 |  100 |
+|  3 |       89 |   99 |
+|  4 |       60 |   10 |
++----+----------+------+
+4 rows in set (0.00 sec)</pre>
+</div>
+</div>
+<div class="section" id="gap-lock-and-next-key-lock">
+<h3>Gap lock and Next key lock<a class="headerlink" href="#gap-lock-and-next-key-lock" title="Permalink to this headline">¶</a></h3>
+<p>When locking query doesn&#8217;t maches to records, the query locks between rows to
+block other transaction inserts records matched. This is called Gap lock.</p>
+<a class="reference internal image-reference" href="images/gap_lock.png"><img alt="images/gap_lock.png" src="images/gap_lock.png" style="height: 400px;" /></a>
+<p>When a query locks non-unique key, it also locks gap before and after the records
+to block other transactions inserts records there. This is called next key lock.</p>
+<a class="reference internal image-reference" href="images/next_key_lock.png"><img alt="images/next_key_lock.png" src="images/next_key_lock.png" style="height: 400px;" /></a>
+</div>
+<div class="section" id="example-gap-lock">
+<h3>example: gap lock<a class="headerlink" href="#example-gap-lock" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python"><pre>mysql&gt; show create table test1\G
+*************************** 1. row ***************************
+        Table: test1
+Create Table: CREATE TABLE `test1` (
+  `id` int(11) NOT NULL,
+  `other_id` int(11) DEFAULT NULL,
+  `data` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_1` (`other_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+1 row in set (0.00 sec)
+
+mysql&gt; select * from test1;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  1 |      100 |  123 |
+|  2 |       70 |  100 |
+|  3 |       80 |   99 |
++----+----------+------+
+3 rows in set (0.00 sec)
+
+mysql&gt; begin;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; select * from test1 where id=100 for update; # Last gap (id &gt; 3) is locked
+Empty set (0.00 sec)
+
+                                mysql&gt; insert into test1 (id, other_id, data) values (4, 60, 10);
+
+mysql&gt; rollback;
+Query OK, 0 rows affected (0.00 sec)
+
+                                Query OK, 1 row affected (5.83 sec)</pre>
+</div>
+</div>
+<div class="section" id="example-next-key-lock">
+<h3>example: next key lock<a class="headerlink" href="#example-next-key-lock" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python"><pre>mysql&gt; select * from test1;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  1 |      100 |  123 |
+|  2 |       70 |  100 |
+|  3 |       80 |   99 |
+|  4 |       60 |   10 |
++----+----------+------+
+4 rows in set (0.00 sec)
+
+mysql&gt; begin;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql&gt; select * from test1 where other_id=70 for update;
++----+----------+------+
+| id | other_id | data |
++----+----------+------+
+|  2 |       70 |  100 |
++----+----------+------+
+1 row in set (0.00 sec)
+
+                                mysql&gt; insert into test1 (id, other_id, data) values (5, 65, 0);
+
+mysql&gt; rollback;
+Query OK, 0 rows affected (0.00 sec)
+
+                                Query OK, 1 row affected (6.20 sec)</pre>
+</div>
+</div>
+</div>
+<div class="section" id="realistic-problem-examples">
+<h2>Realistic problem examples<a class="headerlink" href="#realistic-problem-examples" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="too-long-lock">
+<h3>Too long lock<a class="headerlink" href="#too-long-lock" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python"><pre>&gt; BEGIN;
+&gt; UPDATE guild_point SET point=point+5 where guild_id=9;
+(Calling external HTTP API here ...)
+&gt; COMMIT</pre>
+</div>
+</div>
+<div class="section" id="dead-lock">
+<h3>dead lock<a class="headerlink" href="#dead-lock" title="Permalink to this headline">¶</a></h3>
+<p>One of famous problem about lock.</p>
+<p>One session has lock A and trying to get lock B.
+Another session has lock B and trying to get lock A.
+Both session can&#8217;t lock.</p>
+<p>To avoid deadlock, decide ordering to lock.
+For example, &#8220;lock player before team&#8221; or &#8220;lock row with smaller id first&#8221;.</p>
+<div class="highlight-php"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35</pre></div></td><td class="code"><div class="highlight"><pre><span class="cp">&lt;?php</span>
+<span class="k">class</span> <span class="nc">AccountService</span> <span class="p">{</span>
+    <span class="k">static</span> <span class="k">function</span> <span class="nf">transfer</span><span class="p">(</span><span class="nx">int</span> <span class="nv">$from_id</span><span class="p">,</span> <span class="nx">int</span> <span class="nv">$to_id</span><span class="p">,</span> <span class="nx">int</span> <span class="nv">$amount</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nv">$con</span> <span class="o">=</span> <span class="nx">PropelPDO</span><span class="o">::</span><span class="na">getConnection</span><span class="p">(</span><span class="s1">&#39;master&#39;</span><span class="p">);</span>
+        <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">begin</span><span class="p">();</span>
+        <span class="k">try</span> <span class="p">{</span>
+            <span class="c1">// lock lower id first</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nv">$from_id</span> <span class="o">&lt;</span> <span class="nv">$to_id</span><span class="p">)</span> <span class="p">{</span>
+                <span class="nv">$from_account</span> <span class="o">=</span> <span class="nx">AccountPeer</span><span class="o">::</span><span class="na">retrieveByPkForUpdate</span><span class="p">(</span><span class="nv">$from_id</span><span class="p">);</span>
+                <span class="nv">$to_account</span> <span class="o">=</span> <span class="nx">AccountPeer</span><span class="o">::</span><span class="na">retrieveByPkForUpdate</span><span class="p">(</span><span class="nv">$to_id</span><span class="p">);</span>
+            <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+                <span class="nv">$to_account</span> <span class="o">=</span> <span class="nx">AccountPeer</span><span class="o">::</span><span class="na">retrieveByPkForUpdate</span><span class="p">(</span><span class="nv">$to_id</span><span class="p">);</span>
+                <span class="nv">$from_account</span> <span class="o">=</span> <span class="nx">AccountPeer</span><span class="o">::</span><span class="na">retrieveByPkForUpdate</span><span class="p">(</span><span class="nv">$from_id</span><span class="p">);</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nv">$from_account</span> <span class="o">===</span> <span class="k">null</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">throw</span> <span class="k">new</span> <span class="nx">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid account </span><span class="si">$from_id</span><span class="s2">&quot;</span><span class="p">);</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nv">$to_account</span> <span class="o">===</span> <span class="k">null</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">throw</span> <span class="k">new</span> <span class="nx">Exception</span><span class="p">(</span><span class="s2">&quot;Invalid account </span><span class="si">$to_id</span><span class="s2">&quot;</span><span class="p">);</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nv">$from_account</span><span class="o">.</span><span class="nx">getAmount</span><span class="p">()</span> <span class="o">&lt;</span> <span class="nv">$amount</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">throw</span> <span class="k">new</span> <span class="nx">Exception</span><span class="p">(</span><span class="s2">&quot;account </span><span class="si">$from_id</span><span class="s2"> doesn&#39;t have enough money. (&quot;</span> <span class="o">.</span>
+                                    <span class="nv">$from_account</span><span class="o">-&gt;</span><span class="na">getAmount</span><span class="p">()</span> <span class="o">.</span> <span class="s2">&quot; &lt; </span><span class="si">$amount</span><span class="s2">)&quot;</span><span class="p">);</span>
+            <span class="p">}</span>
+            <span class="nv">$from_account</span><span class="o">-&gt;</span><span class="na">setAmount</span><span class="p">(</span><span class="nv">$from_account</span><span class="o">-&gt;</span><span class="na">getAmount</span><span class="p">()</span> <span class="o">-</span> <span class="nv">$amount</span><span class="p">);</span>
+            <span class="nv">$from_account</span><span class="o">-&gt;</span><span class="na">save</span><span class="p">(</span><span class="nv">$con</span><span class="p">);</span>
+            <span class="nv">$to_account</span><span class="o">-&gt;</span><span class="na">setAmount</span><span class="p">(</span><span class="nv">$to_account</span><span class="o">-&gt;</span><span class="na">getAmount</span><span class="p">()</span> <span class="o">+</span> <span class="nv">$amount</span><span class="p">);</span>
+            <span class="nv">$to_account</span><span class="o">-&gt;</span><span class="na">save</span><span class="p">(</span><span class="nv">$con</span><span class="p">);</span>
+            <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">commit</span><span class="p">();</span>
+        <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">Exception</span> <span class="nv">$e</span><span class="p">)</span> <span class="p">{</span>
+            <span class="nv">$con</span><span class="o">-&gt;</span><span class="na">rollback</span><span class="p">();</span>
+            <span class="k">throw</span> <span class="nv">$e</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22</pre></div></td><td class="code"><div class="highlight"><pre><span class="c"># accountservice.py</span>
+<span class="c"># ...</span>
+<span class="k">def</span> <span class="nf">transfer</span><span class="p">(</span><span class="n">from_id</span><span class="p">,</span> <span class="n">to_id</span><span class="p">,</span> <span class="n">amount</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">Session</span><span class="o">.</span><span class="n">begin</span><span class="p">():</span>
+        <span class="c"># lock lower id first.</span>
+        <span class="k">if</span> <span class="n">from_id</span> <span class="o">&lt;</span> <span class="n">to_id</span><span class="p">:</span>
+            <span class="n">from_account</span> <span class="o">=</span> <span class="n">Session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Account</span><span class="p">)</span><span class="o">.</span><span class="n">with_lockmode</span><span class="p">(</span><span class="s">&#39;update&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">from_id</span><span class="p">)</span>
+            <span class="n">to_account</span> <span class="o">=</span> <span class="n">Session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Account</span><span class="p">)</span><span class="o">.</span><span class="n">with_lockmode</span><span class="p">(</span><span class="s">&#39;update&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">to_id</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">to_account</span> <span class="o">=</span> <span class="n">Session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Account</span><span class="p">)</span><span class="o">.</span><span class="n">with_lockmode</span><span class="p">(</span><span class="s">&#39;update&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">to_id</span><span class="p">)</span>
+            <span class="n">from_account</span> <span class="o">=</span> <span class="n">Session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Account</span><span class="p">)</span><span class="o">.</span><span class="n">with_lockmode</span><span class="p">(</span><span class="s">&#39;update&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">from_id</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">from_account</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Bad account id: </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">from_id</span><span class="p">,))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">to_account</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;Bad account id: </span><span class="si">%r</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">to_id</span><span class="p">,))</span>
+        <span class="k">if</span> <span class="n">from_account</span><span class="o">.</span><span class="n">amount</span> <span class="o">&lt;</span> <span class="n">amount</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;account </span><span class="si">%d</span><span class="s"> doesn&#39;t have enough money. (</span><span class="si">%d</span><span class="s"> &lt; </span><span class="si">%d</span><span class="s">)&quot;</span> <span class="o">%</span>
+                            <span class="p">(</span><span class="n">from_id</span><span class="p">,</span> <span class="n">from_account</span><span class="o">.</span><span class="n">amount</span><span class="p">,</span> <span class="n">amount</span><span class="p">))</span>
+
+        <span class="n">from_account</span><span class="o">.</span><span class="n">amount</span> <span class="o">-=</span> <span class="n">amount</span>
+        <span class="n">to_account</span><span class="o">.</span><span class="n">amount</span> <span class="o">+=</span> <span class="n">amount</span>
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="gap-lock-herd">
+<h3>Gap lock herd<a class="headerlink" href="#gap-lock-herd" title="Permalink to this headline">¶</a></h3>
+<div class="code php highlight-python"><pre>&lt;?php
+// person is created before.
+// person.id is autoincremented PK.
+// person_status is created when first required.
+$person_status = PersonStatusPeer::retrieveByPkForUpdate($person-&gt;getId(), $con);
+if ($person_status === null) {
+    // **Last gap is locked.**
+    $person_status = new PersonStatus();
+    $person_status-&gt;setPersonId($person-&gt;getId());
+}
+// lots of initializing code...
+$person_status-&gt;save($con);
+$con-&gt;commit();</pre>
+</div>
+<p>When many new users come, many users locks one last gap.
+So you should commit as soon as possible.</p>
+</div>
+</div>
+<div class="section" id="how-to-analyze-problems">
+<h2>How to analyze problems<a class="headerlink" href="#how-to-analyze-problems" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>slow query log (find queries take long time)</li>
+<li>show engine status (find deadlock etc..)</li>
+<li>Use a query described in <a class="reference external" href="http://d.hatena.ne.jp/sh2/20090618">http://d.hatena.ne.jp/sh2/20090618</a> (detect which query is blocked.)</li>
+<li><a class="reference external" href="https://github.com/KLab/myprofiler">myprofiler</a> (find slow, massive, blocked queries.)</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Transaction</a><ul>
+<li><a class="reference internal" href="#what-s-transaction">What&#8217;s transaction</a></li>
+<li><a class="reference internal" href="#autocommit">autocommit</a><ul>
+<li><a class="reference internal" href="#example">example</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mvcc">MVCC</a><ul>
+<li><a class="reference internal" href="#id1">example</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#lock">Lock</a><ul>
+<li><a class="reference internal" href="#lost-update-example">lost update example</a></li>
+<li><a class="reference internal" href="#lock-example">lock example</a></li>
+<li><a class="reference internal" href="#row-lock-and-table-lock">row lock and table lock</a></li>
+<li><a class="reference internal" href="#example-table-lock">example: table lock</a></li>
+<li><a class="reference internal" href="#example-row-lock">example: row lock</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#more-about-locks">More about locks</a><ul>
+<li><a class="reference internal" href="#mvcc-and-updating">MVCC and Updating</a></li>
+<li><a class="reference internal" href="#id2">example</a></li>
+<li><a class="reference internal" href="#gap-lock-and-next-key-lock">Gap lock and Next key lock</a></li>
+<li><a class="reference internal" href="#example-gap-lock">example: gap lock</a></li>
+<li><a class="reference internal" href="#example-next-key-lock">example: next key lock</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#realistic-problem-examples">Realistic problem examples</a><ul>
+<li><a class="reference internal" href="#too-long-lock">Too long lock</a></li>
+<li><a class="reference internal" href="#dead-lock">dead lock</a></li>
+<li><a class="reference internal" href="#gap-lock-herd">Gap lock herd</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#how-to-analyze-problems">How to analyze problems</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="key.html"
+                        title="previous chapter">Index (key)</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/transaction.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="key.html" title="Index (key)"
+             >previous</a> |</li>
+        <li><a href="index.html">MySQL Bootcamp 2013 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, INADA Naoki.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

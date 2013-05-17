@@ -1,0 +1,429 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Index (key) &mdash; MySQL Bootcamp 2013 documentation</title>
+    
+    <link rel="stylesheet" href="static/default.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2013',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <script type="text/javascript" src="static/sidebar.js"></script>
+    <link rel="top" title="MySQL Bootcamp 2013 documentation" href="index.html" />
+    <link rel="next" title="Transaction" href="transaction.html" />
+    <link rel="prev" title="MySQL setup" href="start.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="transaction.html" title="Transaction"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="start.html" title="MySQL setup"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">MySQL Bootcamp 2013 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="index-key">
+<h1>Index (key)<a class="headerlink" href="#index-key" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="what-s-index">
+<h2>What&#8217;s Index<a class="headerlink" href="#what-s-index" title="Permalink to this headline">¶</a></h2>
+<p>Index and Key have same meaning.
+Index is general word but Key is Database specific word.</p>
+<p>Index is for searching record effectively.</p>
+<div class="code bash highlight-python"><pre>$ sudo apt-get install ipython python-mysql
+$ ipython
+
+In [1]: import MySQLdb
+In [2]: con = MySQLdb.connect(user='testuser', passwd='password', db='testdb')
+In [3]: cur = con.cursor()
+In [4]: cur.execute("CREATE table test1 (id INTEGER PRIMARY KEY AUTO_INCREMENT, val INTEGER)")
+Out[4]: 0L
+In [5]: values = [(i, i*2) for i in range(1, 100000)]
+In [6]: cur.executemany("INSERT INTO test1 VALUES (%s, %s)", values)
+Out[6]: 99999L
+In [7]: con.commit()
+
+$ mysql -u testuser -ppassword testdb
+
+mysql&gt; select * from test1 where id=100;
++-----+------+
+| id  | val  |
++-----+------+
+| 100 |  200 |
++-----+------+
+1 row in set (0.00 sec)
+
+mysql&gt; select * from test1 where val=200;
++-----+------+
+| id  | val  |
++-----+------+
+| 100 |  200 |
++-----+------+
+1 row in set (0.02 sec)</pre>
+</div>
+<p>As you can see, select by PK consumes 0.00 sec and select by where consumes
+0.02 sec on table having 100000 records.</p>
+<p>If 1M records in Table, selecting without Index may consume 0.2sec. This means
+only 5 (* CPU cores) querys can be executed in one second.</p>
+<p>We need to execute thoughounds of queries in one second.</p>
+</div>
+<div class="section" id="data-structure">
+<h2>Data Structure<a class="headerlink" href="#data-structure" title="Permalink to this headline">¶</a></h2>
+<p>InnoDB is primary storage engine of MySQL.</p>
+<p>InnoDB uses tree data structure to store and search records.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="31%" />
+<col width="69%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">id</th>
+<th class="head">name</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>1</td>
+<td>Kabul</td>
+</tr>
+<tr class="row-odd"><td>2</td>
+<td>Qandahar</td>
+</tr>
+<tr class="row-even"><td>3</td>
+<td>Herat</td>
+</tr>
+<tr class="row-odd"><td>4</td>
+<td>Mazar</td>
+</tr>
+<tr class="row-even"><td>5</td>
+<td>Amsterdam</td>
+</tr>
+<tr class="row-odd"><td>6</td>
+<td>Rotterdam</td>
+</tr>
+</tbody>
+</table>
+<p>This table is stored like this:</p>
+<a class="reference internal image-reference" href="images/aafig-d5b70432296028f380e3f981ed52fc7e4bbeb8a8.svg"><img height="392.0" src="images/aafig-d5b70432296028f380e3f981ed52fc7e4bbeb8a8.svg" width="700.0" /></a>
+<p>This figure is not accurate, but illustrate essence.</p>
+<p>Important note:</p>
+<ul class="simple">
+<li>Records are sorted by key and split.</li>
+<li>Records stored in leaf node.</li>
+<li>Leaf nodes are linked to next leaf.</li>
+<li>All nodes stored in fixed-size block.
+Node is split when it&#8217;s size exceeds block size.</li>
+</ul>
+</div>
+<div class="section" id="how-to-find-record">
+<h2>How to find record<a class="headerlink" href="#how-to-find-record" title="Permalink to this headline">¶</a></h2>
+<p><tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">*</span> <span class="pre">FROM</span> <span class="pre">country</span> <span class="pre">WHERE</span> <span class="pre">id=5</span></tt>:</p>
+<a class="reference internal image-reference" href="images/aafig-e8291b9991ec6db1d3f7ed3201fbc21701e10a45.svg"><img height="406.0" src="images/aafig-e8291b9991ec6db1d3f7ed3201fbc21701e10a45.svg" width="700.0" /></a>
+<ol class="arabic simple">
+<li>Compare 5 with root node value (3). Since 3 &lt; 5, go right child.</li>
+<li>Compare 5 with current node value (6). Since 5 &gt; 6, go left child.</li>
+<li>Current node is leaf. So search 5 in this leaf.</li>
+</ol>
+<p>As you saw, InnoDB doesn&#8217;t need to compare key to all records.
+This is why search by Key is fast.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">If using sorted array, binary search is fast as Tree.
+But tree structure is faster on deleting and inserting.</p>
+</div>
+</div>
+<div class="section" id="how-to-fetch-range">
+<h2>How to fetch range<a class="headerlink" href="#how-to-fetch-range" title="Permalink to this headline">¶</a></h2>
+<p><tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">*</span> <span class="pre">FROM</span> <span class="pre">country</span> <span class="pre">WHERE</span> <span class="pre">id&gt;=2</span> <span class="pre">LIMIT</span> <span class="pre">3</span></tt>:</p>
+<a class="reference internal image-reference" href="images/aafig-161f93b092d136eab0983216f4d7a472efab39ab.svg"><img height="406.0" src="images/aafig-161f93b092d136eab0983216f4d7a472efab39ab.svg" width="728.0" /></a>
+<ol class="arabic simple">
+<li>Compare 2 with root node value (3). Since 2 &lt; 3, go left child.</li>
+<li>This is leaf and find record that&#8217;s id = 2.</li>
+<li>Scan and follow link until reach limit.</li>
+</ol>
+<p>Since leaf node is linked to next leaf, InnoDB can scan rows efficiently.</p>
+</div>
+<div class="section" id="secondary-index">
+<h2>Secondary Index<a class="headerlink" href="#secondary-index" title="Permalink to this headline">¶</a></h2>
+<p>Searching with primary key reaches to records directory.
+If you create other keys (index or constraint), InnoDB creates secondary index.</p>
+<p>Secondary index is Tree too. But it&#8217;s leaf node stores primary key instead of
+actual record.</p>
+<p>For example:</p>
+<p>schema:</p>
+<div class="highlight-python"><pre>create table example (
+    id INTEGER PRIMARY KEY,
+    a INTEGER,
+    b INTEGER,
+    c INTEGER,
+    KEY a (a),
+    KEY ab (a, b)
+)</pre>
+</div>
+<p>table:</p>
+<div class="highlight-python"><pre>+---------+-----+-----+-----+
+| id(PK)  | a   | b   | c   |
++=========+=====+=====+=====+
+| 1       | 10  | 11  | 21  |
++---------+-----+-----+-----+
+| 2       | 20  | 22  | 32  |
++---------+-----+-----+-----+
+| 3       | 30  | 33  | 43  |
++---------+-----+-----+-----+
+| 4       | 40  | 44  | 54  |
++---------+-----+-----+-----+
+| 5       | 50  | 55  | 65  |
++---------+-----+-----+-----+
+| 6       | 60  | 66  | 76  |
++---------+-----+-----+-----+</pre>
+</div>
+<p>index on (a):</p>
+<div class="highlight-python"><pre>+-----+-----+
+| a   | id  |
++=====+=====+
+| 10  | 1   |
++-----+-----+
+| 20  | 2   |
++-----+-----+
+| 30  | 3   |
++-----+-----+
+| 40  | 4   |
++-----+-----+
+| 50  | 5   |
++-----+-----+
+| 60  | 6   |
++-----+-----+</pre>
+</div>
+<p>index on (a, b):</p>
+<div class="highlight-python"><pre>+-----+-----+-----+
+| a   | b   | id  |
++=====+=====+=====+
+| 10  | 11  | 1   |
++-----+-----+-----+
+| 20  | 22  | 2   |
++-----+-----+-----+
+| 30  | 33  | 3   |
++-----+-----+-----+
+| 40  | 44  | 4   |
++-----+-----+-----+
+| 50  | 55  | 5   |
++-----+-----+-----+
+| 60  | 66  | 6   |
++-----+-----+-----+</pre>
+</div>
+<ol class="arabic simple">
+<li>Index may be bigger than you think. consumes significant space like table.</li>
+<li>All indicies has PK implicitly.</li>
+<li>When you add PK to index manually, the index contains PK twice.</li>
+<li>If PK is big (ex, <tt class="docutils literal"><span class="pre">VARCHAR(255)</span></tt>), all indicies is big.</li>
+<li>Index <tt class="docutils literal"><span class="pre">(a,</span> <span class="pre">b)</span></tt> can be used to search by only <tt class="docutils literal"><span class="pre">a</span></tt>.
+So you should remove <tt class="docutils literal"><span class="pre">KEY</span> <span class="pre">a</span> <span class="pre">(a)</span></tt>.</li>
+</ol>
+</div>
+<div class="section" id="tips-covering-index">
+<h2>Tips: covering index<a class="headerlink" href="#tips-covering-index" title="Permalink to this headline">¶</a></h2>
+<p>Normally, searching by secondary index cause two step lookup: (1) search PK by index,
+(2) search record by PK.</p>
+<p>But when all required columns are contained in the index, MySQL doesn&#8217;t search actual
+record.</p>
+<p>For example, <tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">id</span> <span class="pre">FROM</span> <span class="pre">example</span> <span class="pre">WHERE</span> <span class="pre">a</span> <span class="pre">BETWEEN</span> <span class="pre">20</span> <span class="pre">AND</span> <span class="pre">50</span></tt> only requires <tt class="docutils literal"><span class="pre">a</span></tt>
+and <tt class="docutils literal"><span class="pre">id</span></tt>.</p>
+</div>
+<div class="section" id="sorting-and-ranges">
+<h2>Sorting and ranges<a class="headerlink" href="#sorting-and-ranges" title="Permalink to this headline">¶</a></h2>
+<p>All index is sorted by lexicographical order:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="o">...</span>
+</pre></div>
+</div>
+<p><tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">*</span> <span class="pre">FROM</span> <span class="pre">example</span> <span class="pre">WHERE</span> <span class="pre">a</span> <span class="pre">BETWEEN</span> <span class="pre">20</span> <span class="pre">AND</span> <span class="pre">30</span> <span class="pre">ORDER</span> <span class="pre">BY</span> <span class="pre">(a,</span> <span class="pre">b)</span></tt> is efficient.</p>
+<p><tt class="docutils literal"><span class="pre">SELECT</span> <span class="pre">*</span> <span class="pre">FROM</span> <span class="pre">example</span> <span class="pre">WHERE</span> <span class="pre">b</span> <span class="pre">BETWEEN</span> <span class="pre">20</span> <span class="pre">AND</span> <span class="pre">30</span> <span class="pre">ORDER</span> <span class="pre">BY</span> <span class="pre">(a,</span> <span class="pre">b)</span></tt> is not efficient
+because MySQL can&#8217;t use the index <tt class="docutils literal"><span class="pre">(a,</span> <span class="pre">b)</span></tt> for selecting. On this case, MySQL scan
+full table to find records matches <tt class="docutils literal"><span class="pre">b</span> <span class="pre">BETWEEN</span> <span class="pre">20</span> <span class="pre">AND</span> <span class="pre">30</span></tt> and copy them to temporary
+table. After scan, MySQL sorts the temporary table.</p>
+</div>
+<div class="section" id="explain">
+<h2>explain<a class="headerlink" href="#explain" title="Permalink to this headline">¶</a></h2>
+<p>MySQL 5.5 can show how <tt class="docutils literal"><span class="pre">SELECT</span></tt> query executed by <tt class="docutils literal"><span class="pre">EXPLAIN</span> <span class="pre">SELECT...</span></tt> query.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">MySQL 5.6 supports EXPLAINing INSERT, UPDATE, DELETE, ... queries too.
+On MySQL 5.5, you can explain UPDATE and DELETE by replace it to SELECT.</p>
+</div>
+<p>example:</p>
+<div class="highlight-python"><pre>mysql&gt; explain select * from test1 where val=200;
++----+-------------+-------+------+---------------+------+---------+------+--------+-------------+
+| id | select_type | table | type | possible_keys | key  | key_len | ref  | rows   | Extra       |
++----+-------------+-------+------+---------------+------+---------+------+--------+-------------+
+|  1 | SIMPLE      | test1 | ALL  | NULL          | NULL | NULL    | NULL | 100808 | Using where |
++----+-------------+-------+------+---------------+------+---------+------+--------+-------------+
+1 row in set (0.00 sec)
+
+mysql&gt; explain select * from test1 where id=100;
++----+-------------+-------+-------+---------------+---------+---------+-------+------+-------+
+| id | select_type | table | type  | possible_keys | key     | key_len | ref   | rows | Extra |
++----+-------------+-------+-------+---------------+---------+---------+-------+------+-------+
+|  1 | SIMPLE      | test1 | const | PRIMARY       | PRIMARY | 4       | const |    1 |       |
++----+-------------+-------+-------+---------------+---------+---------+-------+------+-------+
+1 row in set (0.00 sec)</pre>
+</div>
+<p>Important columns:</p>
+<div class="section" id="type">
+<h3>type<a class="headerlink" href="#type" title="Permalink to this headline">¶</a></h3>
+<p>If type is <cite>ALL</cite>, MySQL scan whole table. If type is <cite>index</cite>, MySQL scan whole <cite>index</cite>.
+Otherwise, MySQL uses index efficiently.</p>
+</div>
+<div class="section" id="key">
+<h3>key<a class="headerlink" href="#key" title="Permalink to this headline">¶</a></h3>
+<p>key means what key(index) is used.</p>
+</div>
+<div class="section" id="rows">
+<h3>rows<a class="headerlink" href="#rows" title="Permalink to this headline">¶</a></h3>
+<p>rows means estimated rows to test.
+If this value is large (&gt;1000), it&#8217;s problem.</p>
+</div>
+<div class="section" id="extra">
+<h3>Extra<a class="headerlink" href="#extra" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>Using index - need only index.</li>
+<li>Using where - test each record.</li>
+<li>Using temporary - needs temporary temble</li>
+<li>Using filesort - sort by temporary table</li>
+</ul>
+</div>
+</div>
+<div class="section" id="how-to-make-an-effective-indicies">
+<h2>How to make an effective indicies<a class="headerlink" href="#how-to-make-an-effective-indicies" title="Permalink to this headline">¶</a></h2>
+<p>Index has significant cost. So you should not create index everywhere.</p>
+<p>Since finding slow query is easier than finding unnecessary index,
+I recommend start with minimum, obviously required indicies.</p>
+<p>Slow query log is useful feature to find slow query.
+It logs queries consumes specified execution time.</p>
+<p>You can insert many dummy data to development environment.
+Before releasing, check slowlog, find slow queries and consider how to solve.
+(Sometimes there is better way than creating index.)</p>
+<p>To use slow query log:</p>
+<ul>
+<li><p class="first">slow_query_log - <cite>on</cite> to enable slow query log.</p>
+</li>
+<li><p class="first">log_output - where sloq query log saved.</p>
+<blockquote>
+<div><ul class="simple">
+<li><cite>TABLE</cite> - log saved to <cite>mysql.slow_log</cite> table.</li>
+<li><cite>FILE</cite> - log saved to file specifed by <cite>slow_query_log_file</cite>.</li>
+</ul>
+</div></blockquote>
+</li>
+<li><p class="first">long_query_time - queries takes longer this value are logged. (0.01~0.1)</p>
+</li>
+<li><p class="first">log_queries_not_using_indexes - <cite>on</cite> to log queries doesn&#8217;t using indexes.</p>
+</li>
+<li><p class="first">min_examined_row_limit - Suppress slow query log when examined rows below this value.</p>
+</li>
+</ul>
+<p>See also: <a class="reference external" href="http://dev.mysql.com/doc/refman/5.5/en/slow-query-log.html">http://dev.mysql.com/doc/refman/5.5/en/slow-query-log.html</a></p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Index (key)</a><ul>
+<li><a class="reference internal" href="#what-s-index">What&#8217;s Index</a></li>
+<li><a class="reference internal" href="#data-structure">Data Structure</a></li>
+<li><a class="reference internal" href="#how-to-find-record">How to find record</a></li>
+<li><a class="reference internal" href="#how-to-fetch-range">How to fetch range</a></li>
+<li><a class="reference internal" href="#secondary-index">Secondary Index</a></li>
+<li><a class="reference internal" href="#tips-covering-index">Tips: covering index</a></li>
+<li><a class="reference internal" href="#sorting-and-ranges">Sorting and ranges</a></li>
+<li><a class="reference internal" href="#explain">explain</a><ul>
+<li><a class="reference internal" href="#type">type</a></li>
+<li><a class="reference internal" href="#key">key</a></li>
+<li><a class="reference internal" href="#rows">rows</a></li>
+<li><a class="reference internal" href="#extra">Extra</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#how-to-make-an-effective-indicies">How to make an effective indicies</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="start.html"
+                        title="previous chapter">MySQL setup</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="transaction.html"
+                        title="next chapter">Transaction</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/key.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="transaction.html" title="Transaction"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="start.html" title="MySQL setup"
+             >previous</a> |</li>
+        <li><a href="index.html">MySQL Bootcamp 2013 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, INADA Naoki.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

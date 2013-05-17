@@ -1,0 +1,158 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>MySQL setup &mdash; MySQL Bootcamp 2013 documentation</title>
+    
+    <link rel="stylesheet" href="static/default.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2013',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <script type="text/javascript" src="static/sidebar.js"></script>
+    <link rel="top" title="MySQL Bootcamp 2013 documentation" href="index.html" />
+    <link rel="next" title="Index (key)" href="key.html" />
+    <link rel="prev" title="MySQL Bootcamp" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="key.html" title="Index (key)"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="MySQL Bootcamp"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">MySQL Bootcamp 2013 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="mysql-setup">
+<h1>MySQL setup<a class="headerlink" href="#mysql-setup" title="Permalink to this headline">¶</a></h1>
+<p>Trying SQL directly is important even if you use ORM to generate SQL.
+Having testable emvironment is highly recommended.</p>
+<div class="section" id="install">
+<h2>Install<a class="headerlink" href="#install" title="Permalink to this headline">¶</a></h2>
+<p>If you has VM for development, MySQL is already there.</p>
+<p>On Windows or Mac, download installer from Oracle. <a class="reference external" href="http://dev.mysql.com/downloads/installer/">http://dev.mysql.com/downloads/installer/</a></p>
+<p>On Linux, use package manager. For example, Debian wheezy:</p>
+<div class="highlight-python"><pre>$ sudo apt-get install mysql-server mysql-client</pre>
+</div>
+<p>You may be asked to set <em>root</em> password. This is a <em>root</em> user of MySQL. (not for OS user)</p>
+<p>Now you can login to mysql with root user.</p>
+<div class="code bash highlight-python"><pre>$ mysql -uroot -p
+Enter password: (enter password here)
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+...
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql&gt;</pre>
+</div>
+</div>
+<div class="section" id="create-database-and-user">
+<h2>Create Database and User<a class="headerlink" href="#create-database-and-user" title="Permalink to this headline">¶</a></h2>
+<p>You can use root use for everything. But this is dangerous.
+So create additional user for general work is highly recommended.</p>
+<p>Creating <cite>testdb</cite> database and user for accessing to the database:</p>
+<div class="code highlight-python"><pre>mysql&gt; CREATE DATABASE testdb;
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; GRANT ALL on testdb.* TO testuser@localhost IDENTIFIED BY 'password';
+Query OK, 0 rows affected (0.00 sec)</pre>
+</div>
+<p>MySQL checks where user come from. User <tt class="docutils literal"><span class="pre">'testuser'&#64;'localhost'</span></tt> means <cite>&#8216;testuser&#8217;</cite>
+can login from <cite>&#8216;localhost&#8217;</cite> (same to MySQL server).</p>
+<p>Now you can login MySQL with testuser:</p>
+<div class="code bash highlight-python"><pre>$ mysql -utestuser -ppassword testdb</pre>
+</div>
+<p>Now you can create tables in <em>testdb</em>.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">MySQL setup</a><ul>
+<li><a class="reference internal" href="#install">Install</a></li>
+<li><a class="reference internal" href="#create-database-and-user">Create Database and User</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">MySQL Bootcamp</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="key.html"
+                        title="next chapter">Index (key)</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/start.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="key.html" title="Index (key)"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="MySQL Bootcamp"
+             >previous</a> |</li>
+        <li><a href="index.html">MySQL Bootcamp 2013 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, INADA Naoki.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>
