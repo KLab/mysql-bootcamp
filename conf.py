@@ -27,6 +27,7 @@ import sys, os
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.todo',
               'sphinxcontrib.aafig',
+              'sphinxtogithub',
               ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -43,7 +44,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'MySQL Bootcamp'
-copyright = u'2013, INADA Naoki'
+copyright = u'2013, KLab Inc.'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
