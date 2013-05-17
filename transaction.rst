@@ -88,9 +88,9 @@ Python with SQLAlchemy:
 
 .. note::
 
-    This example has a problem. We discusse it later.
+    This example has a problem. We discuss it later.
 
-After transaction, money is completly transferred or not transferred.
+After transaction, money is completely transferred or not transferred.
 Total amount should not be changed. This is atomicity.
 
 While this transaction, ``SELECT SUM(amount) FROM account WHERE id IN (:from_id, :to_id)``
@@ -287,11 +287,11 @@ example
 Lock
 =====
 
-MVCC isolates between update transaction and readonly transaction automatically.
+MVCC isolates between update transaction and read only transaction automatically.
 
 But concurrent two update transaction cause **Lost update** problem.
 
-lost update example
+Lost update example
 ~~~~~~~~~~~~~~~~~~~~
 
 When multiple transaction "Read - Modify - Write" in same time, one transaction
@@ -386,7 +386,7 @@ Better example (less waittime):
 
                                                     # Another player in same team adds 5 points.
                                                     # This also waits until left query is committed.
-                                                    # But lock time is shoter.
+                                                    # But lock time is shorter.
                                                     > UPDATE team SET point=point+5 WHERE team_id=3;
 
 Propel's ``SELECT ... FOR UPDATE`` support has several bugs.
@@ -429,7 +429,7 @@ You can use this not only for selecting by PK.
             team.point += got_point
             #...
 
-You can use ``point=point+n`` too on SQLAlchemy. But it's trickey a bit.
+You can use ``point=point+n`` too on SQLAlchemy. But it's tricky a bit.
 I recommend to write SQL directly.
 
 .. code-block:: python
@@ -457,7 +457,7 @@ For example, ``ALTER TABLE`` requires table lock.
 ``CREATE INDEX`` also acquires table lock in MySQL 5.5.
 (MySQL 5.6 supports online create index).
 
-Normal query may acquires talbe lock too.
+Normal query may acquires table lock too.
 Please consider following case::
 
     > BEGIN;
@@ -483,9 +483,9 @@ Inserting new player having ``team_id=1234`` should update index on ``team_id`` 
 Updating player having ``id=7`` should lock PK but it's locked if the player's team_id is 1234.
 Such queries are blocked until transaction acquiring the lock is committed.
 
-All other queries modifing ``player`` table can be executed without block safely.
+All other queries modifying ``player`` table can be executed without block safely.
 
-example: table lock
+Example: table lock
 ~~~~~~~~~~~~~~~~~~~~
 
 ::
@@ -517,7 +517,7 @@ example: table lock
 
 
 
-example: row lock
+Example: row lock
 ~~~~~~~~~~~~~~~~~~
 
 .. code::
@@ -568,7 +568,7 @@ So ``SELECT ... FOR UPDATE`` ignores MVCC and returns newest value.
 And after updating record, ``SELECT`` returns updated version instead of
 transaction beginning version.
 
-example
+Example
 ~~~~~~~~
 
 .. code::
@@ -643,7 +643,7 @@ example
 Gap lock and Next key lock
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When locking query doesn't maches to records, the query locks between rows to
+When locking query doesn't matches to records, the query locks between rows to
 block other transaction inserts records matched. This is called Gap lock.
 
 .. image:: gap_lock.png
@@ -656,7 +656,7 @@ to block other transactions inserts records there. This is called next key lock.
    :height: 400px
 
 
-example: gap lock
+Example: Gap lock
 ~~~~~~~~~~~~~~~~~~~
 
 ::
@@ -697,7 +697,7 @@ example: gap lock
                                     Query OK, 1 row affected (5.83 sec)
 
 
-example: next key lock
+Example: Next key lock
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
@@ -744,7 +744,7 @@ Too long lock
     (Calling external HTTP API here ...)
     > COMMIT
 
-dead lock
+Dead lock
 ~~~~~~~~~~~~~
 
 One of famous problem about lock.
