@@ -68,7 +68,7 @@ Python with SQLAlchemy:
 
     # accountservice.py
     def transfer(from_id, to_id, amount):
-        with Session.begin():  # get connection and begin transaction
+        with Session.begin():  # Session manages connection and Unit of Work.
             # commit on exit without exception.
             # Or rollback on exit with exception
             from_account = Session.query(Account).get(from_id)
@@ -848,5 +848,5 @@ How to analyze problems
 
 - slow query log (find queries take long time)
 - show engine status (find deadlock etc..)
-- Lock analyzing query described in http://d.hatena.ne.jp/sh2/20090618 (detect which query is blocked.)
+- Use a query described in http://d.hatena.ne.jp/sh2/20090618 (detect which query is blocked.)
 - `myprofiler <https://github.com/KLab/myprofiler>`_ (find slow, massive, blocked queries.)
